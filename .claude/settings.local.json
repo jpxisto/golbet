@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm --version)",
+      "Bash(node -e \"require\\('better-sqlite3'\\)\")",
+      "Bash(node server.js)",
+      "Bash(curl -s http://localhost:3001/api/jogos)",
+      "Bash(npm uninstall *)",
+      "Bash(node -e \"const s = require\\('sqlite3'\\); const db = new s.Database\\(':memory:'\\); db.run\\('CREATE TABLE t \\(id INTEGER PRIMARY KEY\\)'\\); console.log\\('OK'\\)\")",
+      "Bash(node backend/server.js)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'OK — {len\\(d\\)} jogos'\\)\")",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s -X POST http://localhost:3001/api/apostadores/cadastro -H 'Content-Type: application/json' -d '{\"nome\":\"João Silva\",\"telefone\":\"\\(61\\) 99999-9999\"}')",
+      "Bash(python3 -c \"import sys,json; print\\(json.dumps\\(json.load\\(sys.stdin\\), indent=2\\)\\)\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/admin/login -H 'Content-Type: application/json' -d '{\"senha\":\"rolemberg2025\"}')",
+      "Bash(curl -s http://localhost:3001/api/apostadores/1)",
+      "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/1/status -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"status\":\"aberto\"}')",
+      "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/1/status -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"status\":\"encerrado\"}')",
+      "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/1/finalizar -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"resultado\":\"A\"}')",
+      "Bash(curl -s http://localhost:3001/api/apostadores/1/saldo)",
+      "Bash(curl -s http://localhost:3001/api/jogos/apostas/minhas/1)",
+      "Bash(curl -s -X POST http://localhost:3001/api/admin/login -H \"Content-Type: application/json\" -d '{\"senha\":\"rolemberg2025\"}')",
+      "Bash(node -e ' *)",
+      "Bash(pkill -f \"node backend/server.js\")",
+      "Bash(curl -s -X POST http://localhost:3001/api/admin/jogos -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"time_a\":\"Brasil\",\"flag_a\":\"🇧🇷\",\"time_b\":\"Itália\",\"flag_b\":\"🇮🇹\",\"data_hora\":\"2025-07-01T20:00:00\",\"visivel\":true}')",
+      "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/2/visivel -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"visivel\":false}')",
+      "Bash(cmd.exe /c \"for /f \\\\\"tokens=5\\\\\" %a in \\('netstat -aon ^| findstr :3001'\\) do taskkill /F /PID %a\")",
+      "Bash(curl -s \"http://localhost:3001/api/jogos\")",
+      "Bash(netstat -aon)",
+      "Bash(taskkill /F /PID 36324)",
+      "Bash(taskkill //F //PID 36324)",
+      "Bash(curl -s -X POST http://localhost:3001/api/admin/jogos -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"time_a\":\"Teste\",\"flag_a\":\"🇧🇷\",\"time_b\":\"Teste2\",\"flag_b\":\"🇩🇪\",\"visivel\":true}')",
+      "Bash(curl -s -X PUT http://localhost:3001/api/admin/jogos/17 -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"time_a\":\"Brasil\",\"flag_a\":\"🇧🇷\",\"time_b\":\"Itália\",\"flag_b\":\"🇮🇹\",\"data_hora\":\"2025-07-01T20:00:00\",\"visivel\":false}')",
+      "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/3/visivel -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"visivel\":false}')",
+      "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/3/visivel -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"visivel\":true}')"
+    ]
+  }
+}
