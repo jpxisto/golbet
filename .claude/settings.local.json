@@ -34,7 +34,12 @@
       "Bash(curl -s -X POST http://localhost:3001/api/admin/jogos -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"time_a\":\"Teste\",\"flag_a\":\"🇧🇷\",\"time_b\":\"Teste2\",\"flag_b\":\"🇩🇪\",\"visivel\":true}')",
       "Bash(curl -s -X PUT http://localhost:3001/api/admin/jogos/17 -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"time_a\":\"Brasil\",\"flag_a\":\"🇧🇷\",\"time_b\":\"Itália\",\"flag_b\":\"🇮🇹\",\"data_hora\":\"2025-07-01T20:00:00\",\"visivel\":false}')",
       "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/3/visivel -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"visivel\":false}')",
-      "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/3/visivel -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"visivel\":true}')"
+      "Bash(curl -s -X PATCH http://localhost:3001/api/admin/jogos/3/visivel -H 'Content-Type: application/json' -H 'x-admin-senha: rolemberg2025' -d '{\"visivel\":true}')",
+      "Bash(awk '{print $5}')",
+      "Bash(curl -s -X POST http://localhost:3001/api/apostadores/cadastro -H 'Content-Type: application/json' -d '{\"nome\":\"Maria Santos\",\"telefone\":\"\\(61\\) 98888-8888\",\"senha\":\"1234\"}')",
+      "Bash(curl -s -X POST http://localhost:3001/api/apostadores/login -H 'Content-Type: application/json' -d '{\"nome\":\"maria santos\",\"senha\":\"1234\"}')",
+      "Bash(curl -s -X POST http://localhost:3001/api/apostadores/login -H 'Content-Type: application/json' -d '{\"nome\":\"MARIA SANTOS\",\"senha\":\"1234\"}')",
+      "Bash(curl -s -X POST http://localhost:3001/api/apostadores/login -H 'Content-Type: application/json' -d '{\"nome\":\"Maria Santos\",\"senha\":\"errada\"}')"
     ]
   }
 }

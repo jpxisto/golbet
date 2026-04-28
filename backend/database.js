@@ -48,6 +48,7 @@ async function initDB() {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
     telefone TEXT NOT NULL UNIQUE,
+    senha TEXT,
     saldo REAL DEFAULT 0,
     total_depositado REAL DEFAULT 0,
     total_sacado REAL DEFAULT 0,
@@ -55,6 +56,8 @@ async function initDB() {
     total_ganho REAL DEFAULT 0,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Migration: adiciona coluna senha se não existir (bancos criados antes desta versão)
+  try { await run('ALTER TABLE apostadores ADD COLUMN senha TEXT'); } catch {}
 
   await run(`CREATE TABLE IF NOT EXISTS jogos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
