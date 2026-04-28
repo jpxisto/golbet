@@ -2,7 +2,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// Em produção no Railway, usa o volume montado em /data para persistência
+// Em produção no Render, define DB_PATH=/data/golbet.db (Persistent Disk montado em /data)
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'golbet.db');
 const db = new sqlite3.Database(DB_PATH);
 

@@ -208,8 +208,18 @@ function GestaoSaques() {
 }
 
 // ─── Jogos ────────────────────────────────────────────────────────────────────
-const BANDEIRAS = ['🇧🇷','🇦🇷','🇵🇹','🇳🇱','🇩🇪','🇪🇸','🇫🇷','🏴󠁧󠁢󠁥󠁮󠁧󠁿','🇮🇹','🇺🇾','🇨🇴','🇨🇱','🇲🇽','🇺🇸','🇯🇵','🇰🇷','🇸🇳','🇲🇦','🇨🇷','🇪🇨','🏳️'];
+const BANDEIRAS = [
+  { flag: '🇧🇷', nome: 'Brasil' },
+  { flag: '🇦🇷', nome: 'Argentina' },
+  { flag: '🇩🇪', nome: 'Alemanha' },
+  { flag: '🇪🇸', nome: 'Espanha' },
+  { flag: '🇫🇷', nome: 'França' },
+  { flag: '🇳🇱', nome: 'Holanda' },
+  { flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', nome: 'Inglaterra' },
+  { flag: '🇵🇹', nome: 'Portugal' },
+];
 const STATUS_COLOR = { fechado: '#757575', aberto: '#43A047', encerrado: '#F57C00', finalizado: '#1976D2' };
+const STATUS_LABEL = { fechado: '⚪ FECHADO', aberto: '🟢 ABERTO', encerrado: '🔒 ENCERRADO', finalizado: '✅ FINALIZADO' };
 
 const JOGO_VAZIO = { time_a: '', flag_a: '🇧🇷', time_b: '', flag_b: '🇩🇪', data_hora: '', visivel: true };
 
@@ -248,12 +258,15 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
     </div>
   );
 
-  const flagSel = (field, label) => (
+  const flagSel = (flagField, nameField, label) => (
     <div>
       <label style={{ fontSize: 12, color: '#B0BEC5', display: 'block', marginBottom: 4 }}>{label}</label>
-      <select value={form[field]} onChange={e => setForm({ ...form, [field]: e.target.value })}
-        style={{ background: '#003D2B', color: '#fff', border: '1px solid #00874F', borderRadius: 6, padding: '9px 10px', fontFamily: 'Inter, sans-serif', fontSize: 16, width: '100%' }}>
-        {BANDEIRAS.map(f => <option key={f} value={f}>{f}</option>)}
+      <select value={form[flagField]} onChange={e => {
+        const sel = BANDEIRAS.find(b => b.flag === e.target.value);
+        setForm(prev => ({ ...prev, [flagField]: e.target.value, [nameField]: sel ? sel.nome : prev[nameField] }));
+      }}
+        style={{ background: '#003D2B', color: '#fff', border: '1px solid #00874F', borderRadius: 6, padding: '9px 10px', fontFamily: 'Inter, sans-serif', fontSize: 15, width: '100%' }}>
+        {BANDEIRAS.map(b => <option key={b.flag} value={b.flag}>{b.flag} {b.nome}</option>)}
       </select>
     </div>
   );
@@ -270,8 +283,8 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
           {/* Time A */}
           <div style={{ padding: '12px 14px', background: '#003D2B', borderRadius: 8, border: '1px solid rgba(0,135,79,0.4)' }}>
             <div style={{ fontSize: 12, color: '#F5D020', fontWeight: 700, marginBottom: 10 }}>TIME A (Casa)</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 10 }}>
-              {flagSel('flag_a', 'Bandeira')}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {flagSel('flag_a', 'time_a', 'Selecionar país')}
               {inp('time_a', 'Nome do time', 'Ex: Brasil')}
             </div>
           </div>
@@ -282,8 +295,8 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
           {/* Time B */}
           <div style={{ padding: '12px 14px', background: '#003D2B', borderRadius: 8, border: '1px solid rgba(0,135,79,0.4)' }}>
             <div style={{ fontSize: 12, color: '#F5D020', fontWeight: 700, marginBottom: 10 }}>TIME B (Visitante)</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 10 }}>
-              {flagSel('flag_b', 'Bandeira')}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {flagSel('flag_b', 'time_b', 'Selecionar país')}
               {inp('time_b', 'Nome do time', 'Ex: Alemanha')}
             </div>
           </div>
@@ -351,6 +364,15 @@ function GestaoJogos() {
   async function toggleVisivel(id, atual) {
     await axios.patch(`/api/admin/jogos/${id}/visivel`, { visivel: !atual }, { headers });
     fetchJogos();
+  }
+  async function apagarJogo(id, nomeJogo) {
+    if (!window.confirm(`Apagar o jogo "${nomeJogo}"?\nEsta ação não pode ser desfeita.`)) return;
+    try {
+      await axios.delete(`/api/admin/jogos/${id}`, { headers });
+      fetchJogos();
+    } catch (e) {
+      alert(e.response?.data?.erro || 'Erro ao apagar jogo');
+    }
   }
   async function verRelatorio(id) {
     const r = await axios.get(`/api/admin/jogos/${id}/relatorio`, { headers });
@@ -438,7 +460,7 @@ function GestaoJogos() {
               </button>
               {/* Badge status */}
               <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_COLOR[j.status], background: `${STATUS_COLOR[j.status]}22`, padding: '3px 10px', borderRadius: 10 }}>
-                {j.status.toUpperCase()}
+                {STATUS_LABEL[j.status] || j.status.toUpperCase()}
               </span>
               {/* Editar */}
               <button onClick={() => setModalJogo(j)} style={{
@@ -447,16 +469,25 @@ function GestaoJogos() {
               }}>
                 ✏️ Editar
               </button>
+              {/* Apagar */}
+              {j.status !== 'aberto' && (
+                <button onClick={() => apagarJogo(j.id, `${j.time_a} vs ${j.time_b}`)} style={{
+                  background: 'rgba(229,57,53,0.15)', border: '1px solid rgba(229,57,53,0.4)', borderRadius: 6,
+                  color: '#E53935', cursor: 'pointer', padding: '4px 10px', fontSize: 12, fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                }}>
+                  🗑️
+                </button>
+              )}
             </div>
           </div>
 
           {/* Ações de status */}
           <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {j.status === 'fechado' && (
-              <button className="btn-verde" style={{ fontSize: 13, padding: '6px 14px' }} onClick={() => mudarStatus(j.id, 'aberto')}>Abrir apostas</button>
+              <button className="btn-verde" style={{ fontSize: 13, padding: '6px 14px' }} onClick={() => mudarStatus(j.id, 'aberto')}>🟢 Abrir para Apostas</button>
             )}
             {j.status === 'aberto' && (
-              <button className="btn-verde" style={{ fontSize: 13, padding: '6px 14px', background: '#F57C00' }} onClick={() => mudarStatus(j.id, 'encerrado')}>Fechar apostas</button>
+              <button className="btn-verde" style={{ fontSize: 13, padding: '6px 14px', background: '#F57C00' }} onClick={() => mudarStatus(j.id, 'encerrado')}>🔒 Fechar Mercado</button>
             )}
             {j.status === 'encerrado' && (
               <>

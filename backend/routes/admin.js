@@ -135,10 +135,26 @@ router.patch('/jogos/:id/visivel', authAdmin, async (req, res) => {
   res.json({ sucesso: true });
 });
 
+// Apagar jogo (só se não estiver aberto)
+router.delete('/jogos/:id', authAdmin, async (req, res) => {
+  const jogo = await get('SELECT * FROM jogos WHERE id = ?', [req.params.id]);
+  if (!jogo) return res.status(404).json({ erro: 'Jogo não encontrado' });
+  if (jogo.status === 'aberto') return res.status(400).json({ erro: 'Feche o mercado antes de apagar o jogo.' });
+  await run('DELETE FROM apostas WHERE jogo_id = ?', [req.params.id]);
+  await run('DELETE FROM lucro_casa WHERE jogo_id = ?', [req.params.id]);
+  await run('DELETE FROM jogos WHERE id = ?', [req.params.id]);
+  res.json({ sucesso: true });
+});
+
 router.patch('/jogos/:id/status', authAdmin, async (req, res) => {
   const { status } = req.body;
   if (!['fechado', 'aberto', 'encerrado'].includes(status)) return res.status(400).json({ erro: 'Status inválido' });
-  await run('UPDATE jogos SET status = ? WHERE id = ?', [status, req.params.id]);
+  // Ao abrir apostas, torna o jogo automaticamente visível
+  if (status === 'aberto') {
+    await run('UPDATE jogos SET status = ?, visivel = 1 WHERE id = ?', [status, req.params.id]);
+  } else {
+    await run('UPDATE jogos SET status = ? WHERE id = ?', [status, req.params.id]);
+  }
   res.json({ sucesso: true });
 });
 
