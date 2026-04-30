@@ -47,7 +47,7 @@ function AppShell() {
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} isMobile={isMobile} />
 
         {/* Spacer so content doesn't go under fixed sidebar on desktop */}
-        {!isMobile && <div style={{ width: 240, flexShrink: 0 }} />}
+        {!isMobile && <div style={{ width: 220, flexShrink: 0 }} />}
 
         <main style={{ flex: 1, padding: '24px 20px', minWidth: 0, overflowX: 'hidden' }}>
           <Routes>

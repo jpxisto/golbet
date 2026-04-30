@@ -8,26 +8,53 @@ export default function OddButton({ label, odd, selected, onClick, disabled }) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 4,
-        padding: '10px 8px',
-        borderRadius: 6,
-        background: selected ? '#c9a800' : '#F5D020',
-        border: selected ? '2px solid #fff' : '2px solid transparent',
+        gap: 3,
+        padding: '10px 6px',
+        borderRadius: 8,
+        background: selected
+          ? 'linear-gradient(135deg, #FFD000 0%, #E6A800 100%)'
+          : 'linear-gradient(135deg, #002B1C 0%, #001F14 100%)',
+        border: selected
+          ? '2px solid #FFD000'
+          : '1.5px solid rgba(0,194,100,0.2)',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-        minWidth: 80,
+        opacity: disabled ? 0.45 : 1,
+        minWidth: 72,
         flex: 1,
         transition: 'all 0.15s',
         fontFamily: 'Inter, sans-serif',
+        boxShadow: selected ? '0 4px 16px rgba(255,208,0,0.3)' : 'none',
+        transform: selected ? 'translateY(-1px)' : 'none',
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 600, color: '#003D2B', textAlign: 'center', lineHeight: 1.2 }}>
+      <span style={{
+        fontSize: 10,
+        fontWeight: 600,
+        color: selected ? '#000' : 'rgba(255,255,255,0.6)',
+        textAlign: 'center',
+        lineHeight: 1.2,
+        maxWidth: '100%',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        padding: '0 2px',
+      }}>
         {label}
       </span>
-      <span style={{ fontSize: 16, fontWeight: 800, color: '#000' }}>
+      <span style={{
+        fontSize: 17,
+        fontWeight: 900,
+        color: selected ? '#000' : '#FFD000',
+        lineHeight: 1,
+        letterSpacing: '-0.3px',
+      }}>
         {odd > 0 ? `×${odd.toFixed(2)}` : '—'}
       </span>
-      {selected && <span style={{ fontSize: 10, color: '#003D2B', fontWeight: 700 }}>✅ ESCOLHIDO</span>}
+      {selected && (
+        <span style={{ fontSize: 9, color: '#000', fontWeight: 800, letterSpacing: '0.5px', marginTop: 1 }}>
+          ✓ ESCOLHIDO
+        </span>
+      )}
     </button>
   );
 }

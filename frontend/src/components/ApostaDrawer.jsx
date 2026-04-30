@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, TrendingUp } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,7 +21,7 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, odd, onClose,
   async function confirmarAposta() {
     setLoading(true);
     try {
-      const { data } = await axios.post(`/api/jogos/${jogo.id}/apostar`, {
+      await axios.post(`/api/jogos/${jogo.id}/apostar`, {
         apostador_id: usuario.id,
         resultado: resultadoSelecionado,
         valor: valorNum,
@@ -39,61 +39,91 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, odd, onClose,
 
   return (
     <>
-      {/* Overlay */}
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 200 }} />
+      <div onClick={onClose} style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200,
+        backdropFilter: 'blur(3px)', animation: 'fadeIn 0.2s ease',
+      }} />
 
-      {/* Drawer */}
       <div style={{
-        position: 'fixed', right: 0, top: 0, bottom: 0, width: 340, maxWidth: '95vw',
-        background: '#004A35', borderLeft: '2px solid #00874F',
+        position: 'fixed', right: 0, top: 0, bottom: 0,
+        width: 360, maxWidth: '95vw',
+        background: 'linear-gradient(180deg, #002318 0%, #001612 100%)',
+        borderLeft: '1px solid rgba(0,194,100,0.2)',
         zIndex: 201, display: 'flex', flexDirection: 'column',
-        boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
-        animation: 'drawerIn 0.25s ease',
+        boxShadow: '-12px 0 60px rgba(0,0,0,0.7)',
+        animation: 'drawerIn 0.25s cubic-bezier(0.4,0,0.2,1)',
       }}>
-        <style>{`@keyframes drawerIn { from { transform: translateX(100%) } to { transform: translateX(0) } }`}</style>
 
         {/* Header */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(0,135,79,0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: 700, fontSize: 16 }}>Fazer Aposta</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#B0BEC5', cursor: 'pointer', display: 'flex' }}>
-            <X size={20} />
+        <div style={{
+          padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          borderBottom: '1px solid rgba(0,194,100,0.12)',
+          background: 'rgba(0,0,0,0.2)',
+        }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>Fazer Aposta</div>
+            <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginTop: 2 }}>Copa do Mundo Rolemberg</div>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex',
+            borderRadius: 8, padding: 7, transition: 'all 0.15s',
+          }}>
+            <X size={18} />
           </button>
         </div>
 
-        <div style={{ flex: 1, padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ flex: 1, padding: 18, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
           {/* Jogo */}
-          <div style={{ background: '#003D2B', borderRadius: 8, padding: 14, textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: '#B0BEC5', marginBottom: 8 }}>🏆 Copa do Mundo Rolemberg</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>
-              {jogo.flag_a} {jogo.time_a} <span style={{ color: '#B0BEC5', fontWeight: 400 }}>vs</span> {jogo.time_b} {jogo.flag_b}
+          <div style={{
+            background: 'rgba(0,0,0,0.3)', borderRadius: 10, padding: '12px 16px',
+            border: '1px solid rgba(0,194,100,0.1)', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.3px' }}>
+              {jogo.flag_a} {jogo.time_a}
+              <span style={{ color: 'var(--texto-muted)', fontWeight: 400, fontSize: 13, margin: '0 8px' }}>vs</span>
+              {jogo.time_b} {jogo.flag_b}
             </div>
           </div>
 
-          {/* Resultado selecionado */}
-          <div style={{ background: 'rgba(245,208,32,0.15)', border: '2px solid #F5D020', borderRadius: 8, padding: 14, textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: '#B0BEC5', marginBottom: 4 }}>Seu palpite</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#F5D020' }}>
+          {/* Palpite escolhido */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255,208,0,0.12) 0%, rgba(255,208,0,0.06) 100%)',
+            border: '2px solid rgba(255,208,0,0.4)', borderRadius: 10, padding: '14px 16px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Seu Palpite</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: '#FFD000', letterSpacing: '-0.5px' }}>
               {flagResultado} {nomeResultado}
             </div>
-            <div style={{ fontSize: 13, color: '#B0BEC5', marginTop: 4 }}>
-              Odd estimada: <strong style={{ color: '#F5D020' }}>×{(odd || 0).toFixed(2)}</strong>
+            <div style={{ fontSize: 12, color: 'var(--texto-sec)', marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <TrendingUp size={12} style={{ color: '#FFD000' }} />
+              Odd estimada: <strong style={{ color: '#FFD000', marginLeft: 4 }}>×{(odd || 0).toFixed(2)}</strong>
             </div>
           </div>
 
-          {/* Aviso odd */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: 'rgba(229,57,53,0.1)', border: '1px solid rgba(229,57,53,0.3)', borderRadius: 6, padding: 10 }}>
-            <AlertTriangle size={14} style={{ color: '#E53935', flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: 12, color: '#B0BEC5' }}>Odd estimada — pode mudar até o encerramento das apostas</span>
+          {/* Aviso */}
+          <div style={{
+            display: 'flex', gap: 8, alignItems: 'flex-start',
+            background: 'rgba(255,140,0,0.08)', border: '1px solid rgba(255,140,0,0.2)',
+            borderRadius: 8, padding: '8px 12px',
+          }}>
+            <AlertTriangle size={13} style={{ color: '#FF8C00', flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 11, color: 'var(--texto-muted)', lineHeight: 1.4 }}>
+              Odd estimada — pode mudar até o encerramento das apostas
+            </span>
           </div>
 
           {/* Valor */}
           <div>
-            <label style={{ fontSize: 13, color: '#B0BEC5', display: 'block', marginBottom: 6 }}>Valor da aposta</label>
+            <label style={{ fontSize: 12, color: 'var(--texto-sec)', display: 'block', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Valor da Aposta
+            </label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#B0BEC5', fontSize: 14 }}>R$</span>
+              <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--texto-muted)', fontSize: 14, fontWeight: 700 }}>R$</span>
               <input
                 className="input-golbet"
-                style={{ paddingLeft: 36 }}
+                style={{ paddingLeft: 38, fontSize: 16, fontWeight: 700 }}
                 type="number"
                 min={5}
                 max={saldo}
@@ -103,41 +133,60 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, odd, onClose,
                 placeholder="0,00"
               />
             </div>
-            <div style={{ fontSize: 12, color: saldoInsuficiente ? '#E53935' : '#B0BEC5', marginTop: 4 }}>
-              Saldo disponível: R$ {Number(saldo).toFixed(2)}
+            <div style={{ fontSize: 12, color: saldoInsuficiente ? 'var(--vermelho)' : 'var(--texto-muted)', marginTop: 6 }}>
+              {saldoInsuficiente ? '⚠️ Saldo insuficiente' : `Saldo: R$ ${Number(saldo).toFixed(2)}`}
             </div>
             {valorNum >= 5 && !saldoInsuficiente && (
-              <div style={{ fontSize: 13, color: '#43A047', marginTop: 6 }}>
-                Prêmio estimado: <strong>R$ {premioEstimado.toFixed(2)}</strong>
+              <div style={{
+                fontSize: 13, color: '#00C264', marginTop: 8,
+                background: 'rgba(0,194,100,0.08)', borderRadius: 6, padding: '6px 10px',
+                fontWeight: 600,
+              }}>
+                🏆 Prêmio estimado: <strong>R$ {premioEstimado.toFixed(2)}</strong>
               </div>
             )}
           </div>
 
-          {/* Botões rápidos */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[10, 20, 50].filter(v => v <= saldo).map(v => (
-              <button key={v} onClick={() => setValor(String(v))} style={{
-                flex: 1, padding: '6px 0', background: 'rgba(0,135,79,0.3)', border: '1px solid #00874F',
-                borderRadius: 6, color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
-              }}>
-                R$ {v}
-              </button>
-            ))}
-            <button onClick={() => setValor(String(Math.floor(saldo)))} style={{
-              flex: 1, padding: '6px 0', background: 'rgba(0,135,79,0.3)', border: '1px solid #00874F',
-              borderRadius: 6, color: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
-            }}>
-              MAX
-            </button>
+          {/* Valores rápidos */}
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--texto-muted)', display: 'block', marginBottom: 6, fontWeight: 600, letterSpacing: '0.5px' }}>
+              VALORES RÁPIDOS
+            </label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[10, 20, 50].filter(v => v <= saldo).map(v => (
+                <button key={v} onClick={() => setValor(String(v))} style={{
+                  flex: 1, padding: '8px 0',
+                  background: valor === String(v) ? 'rgba(255,208,0,0.15)' : 'rgba(0,0,0,0.3)',
+                  border: valor === String(v) ? '1.5px solid rgba(255,208,0,0.4)' : '1px solid rgba(0,194,100,0.15)',
+                  borderRadius: 7, color: valor === String(v) ? '#FFD000' : 'rgba(255,255,255,0.6)',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all 0.15s',
+                }}>
+                  R$ {v}
+                </button>
+              ))}
+              {saldo >= 5 && (
+                <button onClick={() => setValor(String(Math.floor(saldo)))} style={{
+                  flex: 1, padding: '8px 0',
+                  background: valor === String(Math.floor(saldo)) ? 'rgba(255,208,0,0.15)' : 'rgba(0,0,0,0.3)',
+                  border: valor === String(Math.floor(saldo)) ? '1.5px solid rgba(255,208,0,0.4)' : '1px solid rgba(0,194,100,0.15)',
+                  borderRadius: 7, color: valor === String(Math.floor(saldo)) ? '#FFD000' : 'rgba(255,255,255,0.6)',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all 0.15s',
+                }}>
+                  MAX
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{ padding: 20, borderTop: '1px solid rgba(0,135,79,0.4)' }}>
+        <div style={{ padding: '16px 18px', borderTop: '1px solid rgba(0,194,100,0.12)', background: 'rgba(0,0,0,0.2)' }}>
           {!confirmando ? (
             <button
               className="btn-amarelo"
-              style={{ width: '100%', fontSize: 15, padding: '13px 0' }}
+              style={{ width: '100%', fontSize: 15, padding: '14px 0', letterSpacing: '0.5px' }}
               disabled={valorInvalido || valorNum === 0}
               onClick={() => setConfirmando(true)}
             >
@@ -145,16 +194,17 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, odd, onClose,
             </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ textAlign: 'center', fontSize: 13, color: '#B0BEC5', marginBottom: 4 }}>
-                Confirmar aposta de <strong style={{ color: '#F5D020' }}>R$ {valorNum.toFixed(2)}</strong> em <strong>{nomeResultado}</strong>?
-              </div>
-              <button className="btn-amarelo" style={{ width: '100%' }} onClick={confirmarAposta} disabled={loading}>
-                {loading ? 'Processando...' : '✅ CONFIRMAR'}
-              </button>
-              <button onClick={() => setConfirmando(false)} style={{
-                width: '100%', padding: '10px 0', background: 'transparent', border: '1px solid #B0BEC5',
-                borderRadius: 6, color: '#B0BEC5', cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+              <div style={{
+                textAlign: 'center', fontSize: 13, color: 'var(--texto-sec)',
+                marginBottom: 4, lineHeight: 1.5,
               }}>
+                Confirmar <strong style={{ color: '#FFD000' }}>R$ {valorNum.toFixed(2)}</strong> em{' '}
+                <strong style={{ color: '#fff' }}>{nomeResultado}</strong>?
+              </div>
+              <button className="btn-amarelo" style={{ width: '100%', padding: '13px 0' }} onClick={confirmarAposta} disabled={loading}>
+                {loading ? 'Processando...' : '✅ CONFIRMAR APOSTA'}
+              </button>
+              <button className="btn-ghost" style={{ width: '100%', padding: '11px 0' }} onClick={() => setConfirmando(false)}>
                 Cancelar
               </button>
             </div>

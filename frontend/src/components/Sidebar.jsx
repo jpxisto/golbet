@@ -2,11 +2,11 @@ import { NavLink } from 'react-router-dom';
 import { Trophy, BookOpen, FileText, PlusCircle, MinusCircle, ShieldCheck, X } from 'lucide-react';
 
 const links = [
-  { to: '/', icon: <Trophy size={18} />, label: 'Jogos' },
-  { to: '/palpites', icon: <BookOpen size={18} />, label: 'Meus Palpites' },
-  { to: '/extrato', icon: <FileText size={18} />, label: 'Extrato' },
-  { to: '/depositar', icon: <PlusCircle size={18} />, label: 'Depositar' },
-  { to: '/sacar', icon: <MinusCircle size={18} />, label: 'Sacar' },
+  { to: '/', icon: <Trophy size={17} />, label: 'Jogos' },
+  { to: '/palpites', icon: <BookOpen size={17} />, label: 'Meus Palpites' },
+  { to: '/extrato', icon: <FileText size={17} />, label: 'Extrato' },
+  { to: '/depositar', icon: <PlusCircle size={17} />, label: 'Depositar' },
+  { to: '/sacar', icon: <MinusCircle size={17} />, label: 'Sacar' },
 ];
 
 export default function Sidebar({ open, onClose, isMobile }) {
@@ -15,38 +15,42 @@ export default function Sidebar({ open, onClose, isMobile }) {
 
   return (
     <>
-      {/* Mobile overlay */}
       {isMobile && open && (
-        <div
-          onClick={onClose}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 98 }}
-        />
+        <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 98, backdropFilter: 'blur(2px)' }} />
       )}
 
       <aside style={{
-        width: 240,
-        background: '#00563F',
-        borderRight: '1px solid rgba(0,135,79,0.4)',
+        width: 220,
+        background: 'linear-gradient(180deg, #001F16 0%, #001A12 100%)',
+        borderRight: '1px solid rgba(0,194,100,0.12)',
         display: 'flex',
         flexDirection: 'column',
-        paddingTop: 8,
         position: 'fixed',
-        top: 60,
+        top: 58,
         left: 0,
         bottom: 0,
         zIndex: 99,
         transform: isVisible ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 0.25s ease',
-        boxShadow: isMobile && open ? '4px 0 20px rgba(0,0,0,0.3)' : 'none',
+        transition: 'transform 0.22s cubic-bezier(0.4,0,0.2,1)',
+        boxShadow: isMobile && open ? '6px 0 32px rgba(0,0,0,0.5)' : 'none',
       }}>
-        {/* Close button on mobile */}
         {isMobile && open && (
-          <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#B0BEC5', cursor: 'pointer', display: 'flex' }}>
-            <X size={20} />
+          <button onClick={onClose} style={{
+            position: 'absolute', top: 12, right: 12,
+            background: 'rgba(255,255,255,0.07)', border: 'none',
+            color: '#fff', cursor: 'pointer', display: 'flex',
+            borderRadius: 6, padding: 5,
+          }}>
+            <X size={16} />
           </button>
         )}
 
-        <nav style={{ flex: 1, paddingTop: 8 }}>
+        {/* Nav label */}
+        <div style={{ padding: '18px 16px 8px', fontSize: 10, fontWeight: 700, color: 'var(--texto-muted)', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+          Menu
+        </div>
+
+        <nav style={{ flex: 1 }}>
           {links.map(l => (
             <NavLink
               key={l.to}
@@ -56,25 +60,27 @@ export default function Sidebar({ open, onClose, isMobile }) {
               style={({ isActive }) => ({
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
-                padding: '12px 20px',
-                color: isActive ? '#F5D020' : '#fff',
+                gap: 10,
+                padding: '11px 16px',
+                color: isActive ? '#FFD000' : 'rgba(255,255,255,0.65)',
                 textDecoration: 'none',
-                fontWeight: isActive ? 700 : 400,
-                fontSize: 14,
-                background: isActive ? 'rgba(245,208,32,0.1)' : 'transparent',
-                borderLeft: isActive ? '3px solid #F5D020' : '3px solid transparent',
+                fontWeight: isActive ? 700 : 500,
+                fontSize: 13.5,
+                background: isActive ? 'rgba(255,208,0,0.07)' : 'transparent',
+                borderLeft: isActive ? '3px solid #FFD000' : '3px solid transparent',
                 transition: 'all 0.15s',
+                margin: '1px 0',
               })}
             >
-              {l.icon}
+              <span style={{ opacity: 0.8 }}>{l.icon}</span>
               {l.label}
             </NavLink>
           ))}
         </nav>
 
+        {/* Admin link */}
         {admin && (
-          <div style={{ padding: 16, borderTop: '1px solid rgba(0,135,79,0.3)' }}>
+          <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(0,194,100,0.1)' }}>
             <NavLink
               to="/admin"
               onClick={isMobile ? onClose : undefined}
@@ -82,17 +88,26 @@ export default function Sidebar({ open, onClose, isMobile }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                color: isActive ? '#F5D020' : '#B0BEC5',
+                color: isActive ? '#FFD000' : 'rgba(255,255,255,0.4)',
                 textDecoration: 'none',
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 600,
+                padding: '8px 0',
               })}
             >
-              <ShieldCheck size={16} />
+              <ShieldCheck size={15} />
               Painel Admin
             </NavLink>
           </div>
         )}
+
+        {/* Footer brand */}
+        <div style={{ padding: '10px 16px 16px', borderTop: '1px solid rgba(0,194,100,0.08)' }}>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontWeight: 500 }}>
+            Copa do Mundo<br/>
+            <span style={{ color: 'rgba(255,208,0,0.3)' }}>Rolemberg</span>
+          </div>
+        </div>
       </aside>
     </>
   );
