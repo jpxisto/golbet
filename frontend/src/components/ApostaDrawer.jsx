@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { X, AlertTriangle, TrendingUp } from 'lucide-react';
+import { X } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-export default function ApostaDrawer({ jogo, resultadoSelecionado, odd, onClose, onSucesso }) {
+export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSucesso }) {
   const { usuario, saldo, fetchSaldo, addToast } = useAuth();
   const [valor, setValor] = useState('');
   const [confirmando, setConfirmando] = useState(false);
@@ -14,7 +14,6 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, odd, onClose,
   const nomeResultado = resultadoSelecionado === 'A' ? jogo.time_a : resultadoSelecionado === 'B' ? jogo.time_b : 'Empate';
   const flagResultado = resultadoSelecionado === 'A' ? jogo.flag_a : resultadoSelecionado === 'B' ? jogo.flag_b : '🤝';
   const valorNum = parseFloat(valor) || 0;
-  const premioEstimado = valorNum * (odd || 0);
   const saldoInsuficiente = valorNum > saldo;
   const valorInvalido = valorNum < 5 || saldoInsuficiente;
 
@@ -96,22 +95,6 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, odd, onClose,
             <div style={{ fontSize: 22, fontWeight: 900, color: '#FFD000', letterSpacing: '-0.5px' }}>
               {flagResultado} {nomeResultado}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--texto-sec)', marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-              <TrendingUp size={12} style={{ color: '#FFD000' }} />
-              Odd estimada: <strong style={{ color: '#FFD000', marginLeft: 4 }}>×{(odd || 0).toFixed(2)}</strong>
-            </div>
-          </div>
-
-          {/* Aviso */}
-          <div style={{
-            display: 'flex', gap: 8, alignItems: 'flex-start',
-            background: 'rgba(255,140,0,0.08)', border: '1px solid rgba(255,140,0,0.2)',
-            borderRadius: 8, padding: '8px 12px',
-          }}>
-            <AlertTriangle size={13} style={{ color: '#FF8C00', flexShrink: 0, marginTop: 1 }} />
-            <span style={{ fontSize: 11, color: 'var(--texto-muted)', lineHeight: 1.4 }}>
-              Odd estimada — pode mudar até o encerramento das apostas
-            </span>
           </div>
 
           {/* Valor */}
@@ -136,15 +119,6 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, odd, onClose,
             <div style={{ fontSize: 12, color: saldoInsuficiente ? 'var(--vermelho)' : 'var(--texto-muted)', marginTop: 6 }}>
               {saldoInsuficiente ? '⚠️ Saldo insuficiente' : `Saldo: R$ ${Number(saldo).toFixed(2)}`}
             </div>
-            {valorNum >= 5 && !saldoInsuficiente && (
-              <div style={{
-                fontSize: 13, color: '#00C264', marginTop: 8,
-                background: 'rgba(0,194,100,0.08)', borderRadius: 6, padding: '6px 10px',
-                fontWeight: 600,
-              }}>
-                🏆 Prêmio estimado: <strong>R$ {premioEstimado.toFixed(2)}</strong>
-              </div>
-            )}
           </div>
 
           {/* Valores rápidos */}

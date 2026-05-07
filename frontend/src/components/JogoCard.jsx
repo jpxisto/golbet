@@ -121,25 +121,22 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
             </div>
           )}
 
-          {/* Odds */}
+          {/* Botões de resultado */}
           <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
             <OddButton
               label={`${jogo.flag_a} ${jogo.time_a}`}
-              odd={jogo.odd_a || 0}
               selected={apostaAtual?.resultado === 'A'}
               disabled={!aberto || !usuario}
               onClick={() => setDrawer('A')}
             />
             <OddButton
               label="🤝 Empate"
-              odd={jogo.odd_empate || 0}
               selected={apostaAtual?.resultado === 'empate'}
               disabled={!aberto || !usuario}
               onClick={() => setDrawer('empate')}
             />
             <OddButton
               label={`${jogo.flag_b} ${jogo.time_b}`}
-              odd={jogo.odd_b || 0}
               selected={apostaAtual?.resultado === 'B'}
               disabled={!aberto || !usuario}
               onClick={() => setDrawer('B')}
@@ -206,7 +203,6 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
         <ApostaDrawer
           jogo={jogo}
           resultadoSelecionado={drawer}
-          odd={drawer === 'A' ? jogo.odd_a : drawer === 'B' ? jogo.odd_b : jogo.odd_empate}
           onClose={() => setDrawer(null)}
           onSucesso={() => setDrawer(null)}
         />

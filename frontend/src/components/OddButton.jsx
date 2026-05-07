@@ -1,4 +1,4 @@
-export default function OddButton({ label, odd, selected, onClick, disabled }) {
+export default function OddButton({ label, selected, onClick, disabled }) {
   return (
     <button
       onClick={onClick}
@@ -40,15 +40,6 @@ export default function OddButton({ label, odd, selected, onClick, disabled }) {
         padding: '0 2px',
       }}>
         {label}
-      </span>
-      <span style={{
-        fontSize: 17,
-        fontWeight: 900,
-        color: selected ? '#000' : '#FFD000',
-        lineHeight: 1,
-        letterSpacing: '-0.3px',
-      }}>
-        {odd > 0 ? `×${odd.toFixed(2)}` : '—'}
       </span>
       {selected && (
         <span style={{ fontSize: 9, color: '#000', fontWeight: 800, letterSpacing: '0.5px', marginTop: 1 }}>
