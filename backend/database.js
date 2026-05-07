@@ -137,10 +137,65 @@ async function initDB() {
     fechado_em DATETIME DEFAULT NULL
   )`);
 
-  // Apostas em mercados de longo prazo (1 aposta por usuário por mercado)
+  // Apostas em mercados de longo prazo — criada inicialmente com UNIQUE(mercado_id, apostador_id)
+  // A migração abaixo atualiza para UNIQUE(mercado_id, apostador_id, opcao_escolhida)
   await run(`CREATE TABLE IF NOT EXISTS apostas_longo_prazo (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mercado_id INTEGER NOT NULL REFERENCES mercados_longo_prazo(id),
+    apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+    opcao_escolhida TEXT NOT NULL,
+    valor REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    premio REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mercado_id, apostador_id)
+  )`);
+
+  // === MIGRAÇÃO: UNIQUE(mercado_id, apostador_id) → UNIQUE(mercado_id, apostador_id, opcao_escolhida)
+  // Necessário para permitir múltiplas apostas por usuário em opções diferentes do mesmo mercado
+  try {
+    const indexes = await all("PRAGMA index_list('apostas_longo_prazo')");
+    let hasNewConstraint = false;
+    for (const idx of indexes.filter(i => i.unique)) {
+      const info = await all(`PRAGMA index_info('${idx.name}')`);
+      if (info.some(c => c.name === 'opcao_escolhida')) { hasNewConstraint = true; break; }
+    }
+    if (!hasNewConstraint) {
+      await run(`ALTER TABLE apostas_longo_prazo RENAME TO apostas_longo_prazo_old`);
+      await run(`CREATE TABLE apostas_longo_prazo (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        mercado_id INTEGER NOT NULL REFERENCES mercados_longo_prazo(id),
+        apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+        opcao_escolhida TEXT NOT NULL,
+        valor REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pendente',
+        premio REAL DEFAULT 0,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(mercado_id, apostador_id, opcao_escolhida)
+      )`);
+      await run(`INSERT OR IGNORE INTO apostas_longo_prazo SELECT * FROM apostas_longo_prazo_old`);
+      await run(`DROP TABLE apostas_longo_prazo_old`);
+      console.log('✅ Migração apostas_longo_prazo concluída');
+    }
+  } catch (e) {
+    console.error('⚠️ Migração apostas_longo_prazo:', e.message);
+  }
+
+  // === ARTILHEIROS ===
+  // Mercado de artilheiro por jogo (quem marca mais gols: time_a | empate | time_b)
+  await run(`CREATE TABLE IF NOT EXISTS mercados_artilheiros (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jogo_id INTEGER NOT NULL REFERENCES jogos(id),
+    status TEXT NOT NULL DEFAULT 'aberto',
+    resultado TEXT DEFAULT NULL,
+    pote_total REAL DEFAULT 0,
+    taxa_casa REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS apostas_artilheiros (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mercado_id INTEGER NOT NULL REFERENCES mercados_artilheiros(id),
     apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
     opcao_escolhida TEXT NOT NULL,
     valor REAL NOT NULL,

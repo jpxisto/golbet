@@ -3,9 +3,9 @@ import { X } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSucesso }) {
+export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSucesso, valorInicial, modoEdicao }) {
   const { usuario, saldo, fetchSaldo, addToast } = useAuth();
-  const [valor, setValor] = useState('');
+  const [valor, setValor] = useState(valorInicial ? String(valorInicial) : '');
   const [confirmando, setConfirmando] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -14,7 +14,9 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
   const nomeResultado = resultadoSelecionado === 'A' ? jogo.time_a : resultadoSelecionado === 'B' ? jogo.time_b : 'Empate';
   const flagResultado = resultadoSelecionado === 'A' ? jogo.flag_a : resultadoSelecionado === 'B' ? jogo.flag_b : '🤝';
   const valorNum = parseFloat(valor) || 0;
-  const saldoInsuficiente = valorNum > saldo;
+  // Em modo edição, o saldo efetivo inclui o valor já apostado (será devolvido)
+  const saldoEfetivo = modoEdicao ? saldo + (valorInicial || 0) : saldo;
+  const saldoInsuficiente = valorNum > saldoEfetivo;
   const valorInvalido = valorNum < 5 || saldoInsuficiente;
 
   async function confirmarAposta() {
@@ -60,7 +62,7 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
           background: 'rgba(0,0,0,0.2)',
         }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 16 }}>Fazer Aposta</div>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>{modoEdicao ? 'Editar Aposta' : 'Fazer Aposta'}</div>
             <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginTop: 2 }}>Copa do Mundo Rolemberg</div>
           </div>
           <button onClick={onClose} style={{
@@ -110,14 +112,14 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
                 type="number"
                 min={5}
                 max={saldo}
-                step={1}
+                step={0.01}
                 value={valor}
                 onChange={e => setValor(e.target.value)}
                 placeholder="0,00"
               />
             </div>
             <div style={{ fontSize: 12, color: saldoInsuficiente ? 'var(--vermelho)' : 'var(--texto-muted)', marginTop: 6 }}>
-              {saldoInsuficiente ? '⚠️ Saldo insuficiente' : `Saldo: R$ ${Number(saldo).toFixed(2)}`}
+              {saldoInsuficiente ? '⚠️ Saldo insuficiente' : `Saldo disponível: R$ ${Number(saldoEfetivo).toFixed(2)}`}
             </div>
           </div>
 
@@ -127,7 +129,7 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
               VALORES RÁPIDOS
             </label>
             <div style={{ display: 'flex', gap: 6 }}>
-              {[10, 20, 50].filter(v => v <= saldo).map(v => (
+              {[10, 20, 50].filter(v => v <= saldoEfetivo).map(v => (
                 <button key={v} onClick={() => setValor(String(v))} style={{
                   flex: 1, padding: '8px 0',
                   background: valor === String(v) ? 'rgba(255,208,0,0.15)' : 'rgba(0,0,0,0.3)',
@@ -139,12 +141,12 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
                   R$ {v}
                 </button>
               ))}
-              {saldo >= 5 && (
-                <button onClick={() => setValor(String(Math.floor(saldo)))} style={{
+              {saldoEfetivo >= 5 && (
+                <button onClick={() => setValor(String(Math.floor(saldoEfetivo)))} style={{
                   flex: 1, padding: '8px 0',
-                  background: valor === String(Math.floor(saldo)) ? 'rgba(255,208,0,0.15)' : 'rgba(0,0,0,0.3)',
-                  border: valor === String(Math.floor(saldo)) ? '1.5px solid rgba(255,208,0,0.4)' : '1px solid rgba(0,194,100,0.15)',
-                  borderRadius: 7, color: valor === String(Math.floor(saldo)) ? '#FFD000' : 'rgba(255,255,255,0.6)',
+                  background: valor === String(Math.floor(saldoEfetivo)) ? 'rgba(255,208,0,0.15)' : 'rgba(0,0,0,0.3)',
+                  border: valor === String(Math.floor(saldoEfetivo)) ? '1.5px solid rgba(255,208,0,0.4)' : '1px solid rgba(0,194,100,0.15)',
+                  borderRadius: 7, color: valor === String(Math.floor(saldoEfetivo)) ? '#FFD000' : 'rgba(255,255,255,0.6)',
                   fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                   transition: 'all 0.15s',
                 }}>
@@ -164,7 +166,7 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
               disabled={valorInvalido || valorNum === 0}
               onClick={() => setConfirmando(true)}
             >
-              FAZER APOSTA
+              {modoEdicao ? 'ALTERAR APOSTA' : 'FAZER APOSTA'}
             </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -176,7 +178,7 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
                 <strong style={{ color: '#fff' }}>{nomeResultado}</strong>?
               </div>
               <button className="btn-amarelo" style={{ width: '100%', padding: '13px 0' }} onClick={confirmarAposta} disabled={loading}>
-                {loading ? 'Processando...' : '✅ CONFIRMAR APOSTA'}
+                {loading ? 'Processando...' : modoEdicao ? '✅ CONFIRMAR ALTERAÇÃO' : '✅ CONFIRMAR APOSTA'}
               </button>
               <button className="btn-ghost" style={{ width: '100%', padding: '11px 0' }} onClick={() => setConfirmando(false)}>
                 Cancelar

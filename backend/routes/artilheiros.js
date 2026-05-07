@@ -1,0 +1,247 @@
+const express = require('express');
+const router = express.Router();
+const { run, get, all, transaction } = require('../database');
+
+const ADMIN_SENHA = process.env.ADMIN_SENHA || 'rolemberg2025';
+
+function authAdmin(req, res, next) {
+  if (req.headers['x-admin-senha'] !== ADMIN_SENHA) {
+    return res.status(401).json({ erro: 'Não autorizado' });
+  }
+  next();
+}
+
+// ── Admin: listar todos os mercados artilheiros ───────────────────────────────
+router.get('/admin/lista', authAdmin, async (req, res) => {
+  try {
+    const mercados = await all(`
+      SELECT m.*, j.time_a, j.flag_a, j.time_b, j.flag_b,
+             COUNT(a.id) as num_apostas
+      FROM mercados_artilheiros m
+      JOIN jogos j ON m.jogo_id = j.id
+      LEFT JOIN apostas_artilheiros a ON a.mercado_id = m.id
+      GROUP BY m.id
+      ORDER BY m.criado_em DESC
+    `);
+    res.json(mercados);
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// ── Admin: criar mercado artilheiro para um jogo ──────────────────────────────
+router.post('/admin/criar', authAdmin, async (req, res) => {
+  const { jogo_id } = req.body;
+  if (!jogo_id) return res.status(400).json({ erro: 'jogo_id obrigatório' });
+
+  try {
+    const jogo = await get('SELECT * FROM jogos WHERE id = ?', [jogo_id]);
+    if (!jogo) return res.status(404).json({ erro: 'Jogo não encontrado' });
+
+    const existente = await get('SELECT id FROM mercados_artilheiros WHERE jogo_id = ?', [jogo_id]);
+    if (existente) return res.status(409).json({ erro: 'Já existe mercado artilheiro para este jogo' });
+
+    const r = await run('INSERT INTO mercados_artilheiros (jogo_id) VALUES (?)', [jogo_id]);
+    res.json({ sucesso: true, id: r.lastID });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// ── Admin: alterar status do mercado ─────────────────────────────────────────
+router.patch('/admin/:id/status', authAdmin, async (req, res) => {
+  const { status } = req.body;
+  if (!['aberto', 'fechado'].includes(status)) {
+    return res.status(400).json({ erro: 'Status inválido (aberto | fechado)' });
+  }
+  try {
+    await run('UPDATE mercados_artilheiros SET status = ? WHERE id = ?', [status, req.params.id]);
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// ── Admin: finalizar mercado e distribuir prêmios ─────────────────────────────
+router.patch('/admin/:id/finalizar', authAdmin, async (req, res) => {
+  const { resultado } = req.body;
+  if (!['A', 'empate', 'B'].includes(resultado)) {
+    return res.status(400).json({ erro: 'Resultado inválido (A | empate | B)' });
+  }
+
+  try {
+    const mercado = await get('SELECT * FROM mercados_artilheiros WHERE id = ?', [req.params.id]);
+    if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
+    if (mercado.resultado) return res.status(400).json({ erro: 'Mercado já foi finalizado' });
+
+    const apostas = await all('SELECT * FROM apostas_artilheiros WHERE mercado_id = ?', [mercado.id]);
+    const potePremios = mercado.pote_total * 0.9;
+    const taxaCasa = mercado.pote_total * 0.1;
+
+    const vencedores = apostas.filter(a => a.opcao_escolhida === resultado);
+    const totalVencedores = vencedores.reduce((sum, a) => sum + a.valor, 0);
+
+    const ops = [];
+
+    // Marcar perdedores
+    apostas.filter(a => a.opcao_escolhida !== resultado).forEach(a => {
+      ops.push({ sql: 'UPDATE apostas_artilheiros SET status = ? WHERE id = ?', params: ['perdeu', a.id] });
+    });
+
+    // Distribuir prêmios proporcionalmente
+    if (totalVencedores > 0) {
+      vencedores.forEach(a => {
+        const premio = (a.valor / totalVencedores) * potePremios;
+        ops.push({ sql: 'UPDATE apostas_artilheiros SET status = ?, premio = ? WHERE id = ?', params: ['ganhou', premio, a.id] });
+        ops.push({ sql: 'UPDATE apostadores SET saldo = saldo + ?, total_ganho = total_ganho + ? WHERE id = ?', params: [premio, premio, a.apostador_id] });
+      });
+    } else {
+      // Sem vencedores: devolver tudo ao pote (não há como distribuir)
+      vencedores.forEach(a => {
+        ops.push({ sql: 'UPDATE apostas_artilheiros SET status = ? WHERE id = ?', params: ['pendente', a.id] });
+      });
+    }
+
+    // Fechar mercado com resultado
+    ops.push({ sql: 'UPDATE mercados_artilheiros SET status = ?, resultado = ?, taxa_casa = ? WHERE id = ?', params: ['fechado', resultado, taxaCasa, mercado.id] });
+
+    // Registrar taxa da casa
+    if (taxaCasa > 0) {
+      ops.push({ sql: 'INSERT INTO lucro_casa (jogo_id, valor) VALUES (?, ?)', params: [mercado.jogo_id, taxaCasa] });
+    }
+
+    await transaction(ops);
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro ao finalizar: ' + e.message });
+  }
+});
+
+// ── Admin: deletar mercado artilheiro (devolve saldos) ───────────────────────
+router.delete('/admin/:id', authAdmin, async (req, res) => {
+  try {
+    const mercado = await get('SELECT * FROM mercados_artilheiros WHERE id = ?', [req.params.id]);
+    if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
+    if (mercado.resultado) return res.status(400).json({ erro: 'Mercado finalizado não pode ser deletado' });
+
+    const apostas = await all('SELECT * FROM apostas_artilheiros WHERE mercado_id = ?', [mercado.id]);
+    const ops = [];
+
+    // Devolver saldo a todos os apostadores
+    apostas.forEach(a => {
+      ops.push({ sql: 'UPDATE apostadores SET saldo = saldo + ?, total_apostado = total_apostado - ? WHERE id = ?', params: [a.valor, a.valor, a.apostador_id] });
+    });
+
+    ops.push({ sql: 'DELETE FROM apostas_artilheiros WHERE mercado_id = ?', params: [mercado.id] });
+    ops.push({ sql: 'DELETE FROM mercados_artilheiros WHERE id = ?', params: [mercado.id] });
+
+    await transaction(ops);
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro ao deletar: ' + e.message });
+  }
+});
+
+// ── Admin: listar apostas de um mercado ──────────────────────────────────────
+router.get('/admin/:id/apostas', authAdmin, async (req, res) => {
+  try {
+    const mercado = await get('SELECT * FROM mercados_artilheiros WHERE id = ?', [req.params.id]);
+    if (!mercado) return res.status(404).json({ erro: 'Não encontrado' });
+
+    const apostas = await all(`
+      SELECT a.*, ap.nome
+      FROM apostas_artilheiros a
+      JOIN apostadores ap ON a.apostador_id = ap.id
+      WHERE a.mercado_id = ?
+      ORDER BY a.criado_em DESC
+    `, [mercado.id]);
+
+    const jogo = await get('SELECT * FROM jogos WHERE id = ?', [mercado.jogo_id]);
+    res.json({ mercado, jogo, apostas });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// ── GET /api/artilheiros/:jogoId — mercado + minha aposta (público) ───────────
+// IMPORTANTE: deve vir DEPOIS das rotas /admin/* para não capturar "admin" como jogoId
+router.get('/:jogoId', async (req, res) => {
+  const jogoId = parseInt(req.params.jogoId);
+  if (isNaN(jogoId)) return res.json({ mercado: null, minhaAposta: null });
+
+  const apostadorId = req.headers['apostador-id'];
+
+  try {
+    const mercado = await get('SELECT * FROM mercados_artilheiros WHERE jogo_id = ?', [jogoId]);
+    if (!mercado) return res.json({ mercado: null, minhaAposta: null });
+
+    let minhaAposta = null;
+    if (apostadorId) {
+      minhaAposta = await get('SELECT * FROM apostas_artilheiros WHERE mercado_id = ? AND apostador_id = ?', [mercado.id, apostadorId]);
+    }
+
+    res.json({ mercado, minhaAposta });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// ── POST /api/artilheiros/apostar — registrar/editar aposta ──────────────────
+router.post('/apostar', async (req, res) => {
+  const { jogo_id, apostador_id, opcao_escolhida, valor } = req.body;
+
+  if (!jogo_id || !apostador_id || !opcao_escolhida || !valor) {
+    return res.status(400).json({ erro: 'Campos obrigatórios: jogo_id, apostador_id, opcao_escolhida, valor' });
+  }
+
+  const valorNum = parseFloat(valor);
+  if (isNaN(valorNum) || valorNum < 5) {
+    return res.status(400).json({ erro: 'Valor mínimo de R$ 5,00' });
+  }
+
+  if (!['A', 'empate', 'B'].includes(opcao_escolhida)) {
+    return res.status(400).json({ erro: 'Opção inválida (A | empate | B)' });
+  }
+
+  try {
+    const mercado = await get('SELECT * FROM mercados_artilheiros WHERE jogo_id = ?', [jogo_id]);
+    if (!mercado) return res.status(404).json({ erro: 'Mercado artilheiro não encontrado para este jogo' });
+    if (mercado.status !== 'aberto') return res.status(400).json({ erro: 'Este mercado não está aberto para apostas' });
+
+    const apostador = await get('SELECT * FROM apostadores WHERE id = ?', [apostador_id]);
+    if (!apostador) return res.status(404).json({ erro: 'Apostador não encontrado' });
+
+    const apostaExistente = await get(
+      'SELECT * FROM apostas_artilheiros WHERE mercado_id = ? AND apostador_id = ?',
+      [mercado.id, apostador_id]
+    );
+
+    if (apostaExistente) {
+      // EDITAR aposta (pode trocar de opção e/ou valor)
+      const diff = valorNum - apostaExistente.valor;
+      if (diff > 0 && apostador.saldo < diff) {
+        return res.status(400).json({ erro: 'Saldo insuficiente' });
+      }
+      await transaction([
+        { sql: 'UPDATE apostas_artilheiros SET opcao_escolhida = ?, valor = ? WHERE id = ?', params: [opcao_escolhida, valorNum, apostaExistente.id] },
+        { sql: 'UPDATE mercados_artilheiros SET pote_total = pote_total + ? WHERE id = ?', params: [diff, mercado.id] },
+        { sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?', params: [diff, diff, apostador_id] },
+      ]);
+    } else {
+      // NOVA aposta
+      if (apostador.saldo < valorNum) return res.status(400).json({ erro: 'Saldo insuficiente' });
+      await transaction([
+        { sql: 'INSERT INTO apostas_artilheiros (mercado_id, apostador_id, opcao_escolhida, valor) VALUES (?, ?, ?, ?)', params: [mercado.id, apostador_id, opcao_escolhida, valorNum] },
+        { sql: 'UPDATE mercados_artilheiros SET pote_total = pote_total + ? WHERE id = ?', params: [valorNum, mercado.id] },
+        { sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?', params: [valorNum, valorNum, apostador_id] },
+      ]);
+    }
+
+    const atualizado = await get('SELECT saldo FROM apostadores WHERE id = ?', [apostador_id]);
+    res.json({ sucesso: true, saldo: atualizado.saldo });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno: ' + e.message });
+  }
+});
+
+module.exports = router;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Lock, CheckCircle, Clock } from 'lucide-react';
+import { Users, Lock, CheckCircle, Clock, X } from 'lucide-react';
 import axios from 'axios';
 import OddButton from './OddButton';
 import ApostaDrawer from './ApostaDrawer';
@@ -12,15 +12,193 @@ const STATUS_CONFIG = {
   finalizado: { label: 'Finalizado',      cls: 'badge-finalizado', icon: <CheckCircle size={9} /> },
 };
 
+// ── Drawer de aposta no artilheiro ─────────────────────────────────────────────
+function ArtilheiroDrawer({ jogo, opcaoSelecionada, valorInicial, onClose, onSucesso }) {
+  const { usuario, saldo, fetchSaldo, addToast } = useAuth();
+  const [valor, setValor] = useState(valorInicial ? String(valorInicial) : '');
+  const [confirmando, setConfirmando] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const modoEdicao = !!valorInicial;
+
+  if (!jogo || !opcaoSelecionada) return null;
+
+  const nomeOpcao = opcaoSelecionada === 'A' ? `${jogo.flag_a} ${jogo.time_a}`
+    : opcaoSelecionada === 'B' ? `${jogo.flag_b} ${jogo.time_b}` : '🤝 Empate';
+  const valorNum = parseFloat(valor) || 0;
+  const saldoEfetivo = modoEdicao ? saldo + (valorInicial || 0) : saldo;
+  const saldoInsuficiente = valorNum > saldoEfetivo;
+  const valorInvalido = valorNum < 5 || saldoInsuficiente;
+
+  async function confirmar() {
+    setLoading(true);
+    try {
+      await axios.post('/api/artilheiros/apostar', {
+        jogo_id: jogo.id,
+        apostador_id: usuario.id,
+        opcao_escolhida: opcaoSelecionada,
+        valor: valorNum,
+      });
+      fetchSaldo();
+      addToast(`Artilheiro: R$ ${valorNum.toFixed(2)} em "${nomeOpcao}" registrado! ⚽`, 'sucesso');
+      onSucesso();
+      onClose();
+    } catch (e) {
+      addToast(e.response?.data?.erro || 'Erro ao apostar no artilheiro', 'erro');
+    }
+    setLoading(false);
+    setConfirmando(false);
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200,
+        backdropFilter: 'blur(3px)', animation: 'fadeIn 0.2s ease',
+      }} />
+      <div style={{
+        position: 'fixed', right: 0, top: 0, bottom: 0,
+        width: 360, maxWidth: '95vw',
+        background: 'linear-gradient(180deg, #002318 0%, #001612 100%)',
+        borderLeft: '1px solid rgba(0,194,100,0.2)',
+        zIndex: 201, display: 'flex', flexDirection: 'column',
+        boxShadow: '-12px 0 60px rgba(0,0,0,0.7)',
+        animation: 'drawerIn 0.25s cubic-bezier(0.4,0,0.2,1)',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          borderBottom: '1px solid rgba(0,194,100,0.12)', background: 'rgba(0,0,0,0.2)',
+        }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16 }}>⚽ {modoEdicao ? 'Editar Artilheiro' : 'Artilheiro'}</div>
+            <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginTop: 2 }}>
+              {jogo.flag_a} {jogo.time_a} vs {jogo.time_b} {jogo.flag_b}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex',
+            borderRadius: 8, padding: 7,
+          }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ flex: 1, padding: 18, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Opção escolhida */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255,208,0,0.12) 0%, rgba(255,208,0,0.06) 100%)',
+            border: '2px solid rgba(255,208,0,0.4)', borderRadius: 10, padding: '14px 16px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quem marca mais</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: '#FFD000', letterSpacing: '-0.5px' }}>
+              {nomeOpcao}
+            </div>
+          </div>
+
+          {/* Valor */}
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--texto-sec)', display: 'block', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Valor da Aposta
+            </label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--texto-muted)', fontSize: 14, fontWeight: 700 }}>R$</span>
+              <input
+                className="input-golbet"
+                style={{ paddingLeft: 38, fontSize: 16, fontWeight: 700 }}
+                type="number" min={5} max={saldoEfetivo} step={0.01}
+                value={valor}
+                onChange={e => setValor(e.target.value)}
+                placeholder="0,00"
+              />
+            </div>
+            <div style={{ fontSize: 12, color: saldoInsuficiente ? 'var(--vermelho)' : 'var(--texto-muted)', marginTop: 6 }}>
+              {saldoInsuficiente ? '⚠️ Saldo insuficiente' : `Saldo disponível: R$ ${Number(saldoEfetivo).toFixed(2)}`}
+            </div>
+          </div>
+
+          {/* Valores rápidos */}
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--texto-muted)', display: 'block', marginBottom: 6, fontWeight: 600, letterSpacing: '0.5px' }}>VALORES RÁPIDOS</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[10, 20, 50].filter(v => v <= saldoEfetivo).map(v => (
+                <button key={v} onClick={() => setValor(String(v))} style={{
+                  flex: 1, padding: '8px 0',
+                  background: valor === String(v) ? 'rgba(255,208,0,0.15)' : 'rgba(0,0,0,0.3)',
+                  border: valor === String(v) ? '1.5px solid rgba(255,208,0,0.4)' : '1px solid rgba(0,194,100,0.15)',
+                  borderRadius: 7, color: valor === String(v) ? '#FFD000' : 'rgba(255,255,255,0.6)',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                }}>R$ {v}</button>
+              ))}
+              {saldoEfetivo >= 5 && (
+                <button onClick={() => setValor(String(Math.floor(saldoEfetivo)))} style={{
+                  flex: 1, padding: '8px 0',
+                  background: valor === String(Math.floor(saldoEfetivo)) ? 'rgba(255,208,0,0.15)' : 'rgba(0,0,0,0.3)',
+                  border: valor === String(Math.floor(saldoEfetivo)) ? '1.5px solid rgba(255,208,0,0.4)' : '1px solid rgba(0,194,100,0.15)',
+                  borderRadius: 7, color: valor === String(Math.floor(saldoEfetivo)) ? '#FFD000' : 'rgba(255,255,255,0.6)',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                }}>MAX</button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 18px', borderTop: '1px solid rgba(0,194,100,0.12)', background: 'rgba(0,0,0,0.2)' }}>
+          {!confirmando ? (
+            <button
+              className="btn-amarelo"
+              style={{ width: '100%', fontSize: 15, padding: '14px 0', letterSpacing: '0.5px' }}
+              disabled={valorInvalido || valorNum === 0}
+              onClick={() => setConfirmando(true)}
+            >
+              {modoEdicao ? 'ALTERAR APOSTA' : 'APOSTAR NO ARTILHEIRO'}
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--texto-sec)', marginBottom: 4, lineHeight: 1.5 }}>
+                Confirmar <strong style={{ color: '#FFD000' }}>R$ {valorNum.toFixed(2)}</strong> em{' '}
+                <strong style={{ color: '#fff' }}>{nomeOpcao}</strong>?
+              </div>
+              <button className="btn-amarelo" style={{ width: '100%', padding: '13px 0' }} onClick={confirmar} disabled={loading}>
+                {loading ? 'Processando...' : modoEdicao ? '✅ CONFIRMAR ALTERAÇÃO' : '✅ CONFIRMAR APOSTA'}
+              </button>
+              <button className="btn-ghost" style={{ width: '100%', padding: '11px 0' }} onClick={() => setConfirmando(false)}>
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Card do jogo ───────────────────────────────────────────────────────────────
 export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
   const { usuario } = useAuth();
   const [jogo, setJogo] = useState(jogoInicial);
   const [drawer, setDrawer] = useState(null);
+  const [artilheiro, setArtilheiro] = useState(null); // { mercado, minhaAposta }
+  const [drawerArt, setDrawerArt] = useState(null);   // 'A' | 'empate' | 'B'
+
+  // Busca mercado artilheiro
+  async function fetchArtilheiro() {
+    try {
+      const { data } = await axios.get(`/api/artilheiros/${jogo.id}`, {
+        headers: usuario ? { 'apostador-id': usuario.id } : {},
+      });
+      setArtilheiro(data);
+    } catch {}
+  }
+
+  useEffect(() => { fetchArtilheiro(); }, [jogo.id, usuario?.id]);
 
   useEffect(() => {
     if (jogo.status !== 'aberto') return;
     const iv = setInterval(async () => {
       try { const { data } = await axios.get(`/api/jogos/${jogo.id}`); setJogo(data); } catch {}
+      fetchArtilheiro();
     }, 10000);
     return () => clearInterval(iv);
   }, [jogo.id, jogo.status]);
@@ -143,6 +321,66 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
             />
           </div>
 
+          {/* Seção Artilheiro */}
+          {artilheiro && artilheiro.mercado && (
+            <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,194,100,0.12)', background: 'rgba(0,0,0,0.18)' }}>
+              <div style={{ fontSize: 10, color: 'var(--texto-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8, textAlign: 'center' }}>
+                ⚽ Quem marca mais?
+              </div>
+              <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+                {[
+                  { key: 'A', label: `${jogo.flag_a} ${jogo.time_a}` },
+                  { key: 'empate', label: '🤝 Empate' },
+                  { key: 'B', label: `${jogo.flag_b} ${jogo.time_b}` },
+                ].map(({ key, label }) => {
+                  const artAberto = artilheiro.mercado.status === 'aberto';
+                  const minha = artilheiro.minhaAposta;
+                  const selected = minha?.opcao_escolhida === key;
+                  const vencedor = artilheiro.mercado.resultado === key;
+                  return (
+                    <button
+                      key={key}
+                      disabled={!artAberto || !usuario}
+                      onClick={() => artAberto && usuario && setDrawerArt(key)}
+                      style={{
+                        flex: 1, padding: '7px 4px', borderRadius: 7,
+                        cursor: (!artAberto || !usuario) ? 'default' : 'pointer',
+                        background: selected
+                          ? 'linear-gradient(135deg, rgba(255,208,0,0.18),rgba(255,208,0,0.08))'
+                          : vencedor ? 'rgba(0,194,100,0.12)' : 'rgba(0,0,0,0.25)',
+                        border: selected ? '2px solid rgba(255,208,0,0.5)' : vencedor ? '1px solid rgba(0,194,100,0.4)' : '1px solid rgba(0,194,100,0.12)',
+                        color: selected ? '#FFD000' : vencedor ? '#00C264' : 'rgba(255,255,255,0.7)',
+                        fontSize: 10, fontWeight: selected || vencedor ? 700 : 500,
+                        transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                    >
+                      {vencedor && !selected ? '✅ ' : selected ? '✓ ' : ''}{label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {artilheiro.minhaAposta ? (
+                  <span style={{ fontSize: 10, color: 'rgba(255,208,0,0.8)' }}>
+                    Sua aposta: <strong>{
+                      artilheiro.minhaAposta.opcao_escolhida === 'A' ? `${jogo.flag_a} ${jogo.time_a}` :
+                      artilheiro.minhaAposta.opcao_escolhida === 'B' ? `${jogo.flag_b} ${jogo.time_b}` : '🤝 Empate'
+                    }</strong> · R$ {Number(artilheiro.minhaAposta.valor).toFixed(2)}
+                    {artilheiro.minhaAposta.status === 'ganhou' && <span style={{ color: '#00C264' }}> +R$ {Number(artilheiro.minhaAposta.premio).toFixed(2)} ✅</span>}
+                    {artilheiro.minhaAposta.status === 'perdeu' && <span style={{ color: 'var(--vermelho)' }}> ❌</span>}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 10, color: 'var(--texto-muted)' }}>
+                    {artilheiro.mercado.status === 'aberto' ? (usuario ? 'Clique para apostar' : 'Faça login para apostar') : 'Apostas encerradas'}
+                  </span>
+                )}
+                <span style={{ fontSize: 10, color: 'var(--texto-muted)' }}>
+                  Pote: <span style={{ color: '#FFD000', fontWeight: 600 }}>R$ {Number(artilheiro.mercado.pote_total || 0).toFixed(2)}</span>
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Footer */}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -199,12 +437,26 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
         </div>
       </div>
 
+      {/* Drawer do resultado do jogo */}
       {drawer && (
         <ApostaDrawer
           jogo={jogo}
           resultadoSelecionado={drawer}
           onClose={() => setDrawer(null)}
           onSucesso={() => setDrawer(null)}
+          valorInicial={apostaAtual?.resultado === drawer ? apostaAtual?.valor : undefined}
+          modoEdicao={apostaAtual?.resultado === drawer}
+        />
+      )}
+
+      {/* Drawer do artilheiro */}
+      {drawerArt && (
+        <ArtilheiroDrawer
+          jogo={jogo}
+          opcaoSelecionada={drawerArt}
+          valorInicial={artilheiro?.minhaAposta?.opcao_escolhida === drawerArt ? artilheiro?.minhaAposta?.valor : undefined}
+          onClose={() => setDrawerArt(null)}
+          onSucesso={() => { setDrawerArt(null); fetchArtilheiro(); }}
         />
       )}
     </>

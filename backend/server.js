@@ -14,6 +14,7 @@ app.use('/api/depositos', require('./routes/depositos'));
 app.use('/api/saques', require('./routes/saques'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/longo-prazo', require('./routes/longoplazo'));
+app.use('/api/artilheiros', require('./routes/artilheiros'));
 
 // Serve frontend em produção
 if (process.env.NODE_ENV === 'production') {

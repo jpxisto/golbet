@@ -82,14 +82,28 @@ router.post('/:id/apostar', async (req, res) => {
     if (!apostador) return res.status(404).json({ erro: 'Apostador não encontrado' });
     if (apostador.saldo < valorNum) return res.status(400).json({ erro: 'Saldo insuficiente' });
 
-    // Verifica se já apostou neste mercado (1 aposta por usuário por mercado)
+    // Verifica se já apostou NESTA OPÇÃO específica (pode apostar em outras opções do mesmo mercado)
     const apostaExistente = await get(
-      'SELECT * FROM apostas_longo_prazo WHERE mercado_id = ? AND apostador_id = ?',
-      [mercadoId, apostador_id]
+      'SELECT * FROM apostas_longo_prazo WHERE mercado_id = ? AND apostador_id = ? AND opcao_escolhida = ?',
+      [mercadoId, apostador_id, opcao_escolhida]
     );
-    if (apostaExistente) return res.status(409).json({ erro: 'Você já apostou neste mercado' });
 
-    // Transação: debita saldo + registra aposta + atualiza pote do mercado
+    if (apostaExistente) {
+      // EDITAR aposta existente nesta opção
+      const diff = valorNum - apostaExistente.valor;
+      if (diff > 0 && apostador.saldo < diff) {
+        return res.status(400).json({ erro: 'Saldo insuficiente para aumentar a aposta' });
+      }
+      await transaction([
+        { sql: 'UPDATE apostas_longo_prazo SET valor = ? WHERE id = ?', params: [valorNum, apostaExistente.id] },
+        { sql: 'UPDATE mercados_longo_prazo SET pote_total = pote_total + ? WHERE id = ?', params: [diff, mercadoId] },
+        { sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?', params: [diff, diff, apostador_id] },
+      ]);
+      const atualizado = await get('SELECT saldo FROM apostadores WHERE id = ?', [apostador_id]);
+      return res.json({ sucesso: true, saldo: atualizado.saldo, editado: true });
+    }
+
+    // NOVA aposta (nesta opção ainda não apostada)
     await transaction([
       {
         sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?',
@@ -109,7 +123,7 @@ router.post('/:id/apostar', async (req, res) => {
     res.json({ sucesso: true, saldo: atualizado.saldo });
   } catch (e) {
     if (e.message && e.message.includes('UNIQUE')) {
-      return res.status(409).json({ erro: 'Você já apostou neste mercado' });
+      return res.status(409).json({ erro: 'Você já apostou nesta opção' });
     }
     res.status(500).json({ erro: 'Erro interno' });
   }
