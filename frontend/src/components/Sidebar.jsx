@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { Trophy, BookOpen, FileText, PlusCircle, MinusCircle, ShieldCheck, X } from 'lucide-react';
+import { Trophy, BookOpen, FileText, PlusCircle, MinusCircle, ShieldCheck, X, Clock } from 'lucide-react';
 
 const links = [
   { to: '/', icon: <Trophy size={17} />, label: 'Jogos' },
+  { to: '/longo-prazo', icon: <Clock size={17} />, label: 'Longo Prazo' },
   { to: '/palpites', icon: <BookOpen size={17} />, label: 'Meus Palpites' },
   { to: '/extrato', icon: <FileText size={17} />, label: 'Extrato' },
   { to: '/depositar', icon: <PlusCircle size={17} />, label: 'Depositar' },

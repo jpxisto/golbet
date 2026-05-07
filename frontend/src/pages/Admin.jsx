@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { ShieldCheck, Users, DollarSign, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 
-const ABA = { dashboard: 'Dashboard', depositos: 'Depósitos', saques: 'Saques', jogos: 'Jogos', apostadores: 'Apostadores' };
+const ABA = { dashboard: 'Dashboard', depositos: 'Depósitos', saques: 'Saques', jogos: 'Jogos', longoplazo: 'Longo Prazo', apostadores: 'Apostadores' };
 
 function useAdmin() {
   const [senha] = useState(() => localStorage.getItem('golbet_admin') || '');
@@ -551,6 +551,261 @@ function GestaoApostadores() {
   );
 }
 
+// ─── Longo Prazo (admin) ──────────────────────────────────────────────────────
+function GestaoLongoPrazo() {
+  const { headers } = useAdmin();
+  const [mercados, setMercados] = useState([]);
+  const [relatório, setRelatorio] = useState(null);
+  const [novoForm, setNovoForm] = useState({ titulo: '', opcoes: '' });
+  const [criando, setCriando] = useState(false);
+  const [resultado, setResultado] = useState({});
+  const [finalizando, setFinalizando] = useState({});
+
+  const fetchMercados = useCallback(() => {
+    axios.get('/api/admin/longo-prazo/mercados', { headers })
+      .then(r => setMercados(r.data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchMercados(); }, [fetchMercados]);
+
+  async function criarMercado(e) {
+    e.preventDefault();
+    const opcoes = novoForm.opcoes.split('\n').map(o => o.trim()).filter(Boolean);
+    if (!novoForm.titulo.trim() || opcoes.length < 2) {
+      return alert('Informe o título e pelo menos 2 opções (uma por linha)');
+    }
+    try {
+      await axios.post('/api/admin/longo-prazo/mercados', { titulo: novoForm.titulo, opcoes }, { headers });
+      setNovoForm({ titulo: '', opcoes: '' });
+      setCriando(false);
+      fetchMercados();
+    } catch (e) {
+      alert(e.response?.data?.erro || 'Erro ao criar mercado');
+    }
+  }
+
+  async function alterarStatus(id, status) {
+    try {
+      await axios.patch(`/api/admin/longo-prazo/mercados/${id}/status`, { status }, { headers });
+      fetchMercados();
+    } catch (e) {
+      alert(e.response?.data?.erro || 'Erro ao alterar status');
+    }
+  }
+
+  async function finalizarMercado(id) {
+    if (!resultado[id]) return alert('Selecione o resultado vencedor');
+    if (!window.confirm(`Confirmar "${resultado[id]}" como vencedor? Isso distribuirá os prêmios e não pode ser desfeito.`)) return;
+    setFinalizando(f => ({ ...f, [id]: true }));
+    try {
+      await axios.patch(`/api/admin/longo-prazo/mercados/${id}/finalizar`, { resultado: resultado[id] }, { headers });
+      fetchMercados();
+    } catch (e) {
+      alert(e.response?.data?.erro || 'Erro ao finalizar');
+    }
+    setFinalizando(f => ({ ...f, [id]: false }));
+  }
+
+  async function apagarMercado(id, titulo) {
+    if (!window.confirm(`Apagar o mercado "${titulo}"? Os saldos serão devolvidos aos apostadores.`)) return;
+    try {
+      await axios.delete(`/api/admin/longo-prazo/mercados/${id}`, { headers });
+      fetchMercados();
+    } catch (e) {
+      alert(e.response?.data?.erro || 'Erro ao apagar');
+    }
+  }
+
+  async function verApostas(id) {
+    const r = await axios.get(`/api/admin/longo-prazo/mercados/${id}/apostas`, { headers });
+    setRelatorio(r.data);
+  }
+
+  const STATUS_COR = { aberto: '#43A047', fechado: '#757575' };
+  const STATUS_LABEL_LP = { aberto: '🟢 ABERTO', fechado: '🔒 FECHADO' };
+
+  return (
+    <div>
+      {/* Modal relatório de apostas */}
+      {relatório && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div className="card-golbet" style={{ maxWidth: 520, width: '100%', maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 15 }}>📊 {relatório.mercado.titulo}</h3>
+              <button onClick={() => setRelatorio(null)} style={{ background: 'none', border: 'none', color: '#B0BEC5', cursor: 'pointer', fontSize: 20 }}>×</button>
+            </div>
+            {relatório.mercado.resultado && (
+              <div style={{ background: 'rgba(67,160,71,0.15)', border: '1px solid #43A047', borderRadius: 6, padding: '8px 12px', marginBottom: 12, fontSize: 14 }}>
+                🏆 Resultado: <strong>{relatório.mercado.resultado}</strong>
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14, fontSize: 13 }}>
+              <div>Pote total: <strong>R$ {Number(relatório.poteTotal).toFixed(2)}</strong></div>
+              <div>Taxa casa (10%): <strong style={{ color: '#E53935' }}>R$ {Number(relatório.taxaCasa).toFixed(2)}</strong></div>
+              <div>Pote prêmios: <strong style={{ color: '#43A047' }}>R$ {Number(relatório.potePremios).toFixed(2)}</strong></div>
+              <div>Total apostas: <strong>{relatório.apostas.length}</strong></div>
+            </div>
+            {/* Breakdown por opção */}
+            <div style={{ marginBottom: 12 }}>
+              {relatório.mercado.opcoes.map(op => {
+                const total = relatório.apostas.filter(a => a.opcao_escolhida === op).reduce((s, a) => s + a.valor, 0);
+                return (
+                  <div key={op} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid rgba(0,135,79,0.15)' }}>
+                    <span style={{ color: relatório.mercado.resultado === op ? '#43A047' : '#fff', fontWeight: relatório.mercado.resultado === op ? 700 : 400 }}>
+                      {relatório.mercado.resultado === op ? '🏆 ' : ''}{op}
+                    </span>
+                    <span>R$ {total.toFixed(2)} ({relatório.apostas.filter(a => a.opcao_escolhida === op).length} apostas)</span>
+                  </div>
+                );
+              })}
+            </div>
+            {relatório.apostas.length > 0 && (
+              <>
+                <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Apostadores:</div>
+                {relatório.apostas.map(a => (
+                  <div key={a.id} style={{ fontSize: 12, padding: '6px 0', borderBottom: '1px solid rgba(0,135,79,0.15)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{a.nome} — <strong style={{ color: '#FFD000' }}>{a.opcao_escolhida}</strong> · R$ {Number(a.valor).toFixed(2)}</span>
+                    <span>
+                      {a.status === 'ganhou' && <span style={{ color: '#43A047', fontWeight: 700 }}>+R$ {Number(a.premio).toFixed(2)} ✅</span>}
+                      {a.status === 'perdeu' && <span style={{ color: '#E53935' }}>❌</span>}
+                      {a.status === 'pendente' && <span style={{ color: '#F57C00' }}>⏳</span>}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Form criar novo mercado */}
+      {criando ? (
+        <div className="card-golbet" style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>➕ Novo Mercado de Longo Prazo</h3>
+          <form onSubmit={criarMercado} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: '#B0BEC5', display: 'block', marginBottom: 4 }}>Título do mercado</label>
+              <input
+                className="input-golbet"
+                value={novoForm.titulo}
+                onChange={e => setNovoForm({ ...novoForm, titulo: e.target.value })}
+                placeholder="Ex: Quem será o campeão da Copa Rolemberg?"
+                required
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: '#B0BEC5', display: 'block', marginBottom: 4 }}>
+                Opções (uma por linha, mín. 2)
+              </label>
+              <textarea
+                className="input-golbet"
+                style={{ minHeight: 120, resize: 'vertical', fontFamily: 'Inter, sans-serif' }}
+                value={novoForm.opcoes}
+                onChange={e => setNovoForm({ ...novoForm, opcoes: e.target.value })}
+                placeholder={'Brasil\nArgentina\nPortugal\nAlemanha'}
+                required
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-amarelo" type="submit" style={{ flex: 1, padding: '10px 0', fontSize: 14 }}>✅ Criar Mercado</button>
+              <button type="button" onClick={() => setCriando(false)} style={{ flex: 1, padding: '10px 0', background: 'transparent', border: '1px solid #B0BEC5', borderRadius: 6, color: '#B0BEC5', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 16 }}>
+          <button className="btn-amarelo" style={{ padding: '9px 20px', fontSize: 14 }} onClick={() => setCriando(true)}>
+            ➕ Novo Mercado
+          </button>
+        </div>
+      )}
+
+      {mercados.length === 0 && <p style={{ color: '#B0BEC5' }}>Nenhum mercado de longo prazo criado.</p>}
+
+      {mercados.map(m => (
+        <div key={m.id} className="card-golbet" style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{m.titulo}</div>
+              <div style={{ fontSize: 12, color: '#B0BEC5', marginBottom: 6 }}>
+                {m.num_apostas} apostas · Pote: <strong style={{ color: '#F5D020' }}>R$ {Number(m.pote_total || 0).toFixed(2)}</strong>
+                {m.resultado && <> · 🏆 Vencedor: <strong style={{ color: '#43A047' }}>{m.resultado}</strong></>}
+              </div>
+              {/* Opções disponíveis */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {m.opcoes.map(op => (
+                  <span key={op} style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 10,
+                    background: m.resultado === op ? 'rgba(67,160,71,0.2)' : 'rgba(0,0,0,0.3)',
+                    border: m.resultado === op ? '1px solid #43A047' : '1px solid rgba(0,135,79,0.3)',
+                    color: m.resultado === op ? '#43A047' : '#B0BEC5',
+                    fontWeight: m.resultado === op ? 700 : 400,
+                  }}>
+                    {m.resultado === op ? '🏆 ' : ''}{op}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Badge status */}
+              <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_COR[m.status] || '#757575', background: `${STATUS_COR[m.status] || '#757575'}22`, padding: '3px 10px', borderRadius: 10 }}>
+                {m.resultado ? '✅ FINALIZADO' : (STATUS_LABEL_LP[m.status] || m.status.toUpperCase())}
+              </span>
+              {/* Relatório */}
+              <button onClick={() => verApostas(m.id)} style={{ background: 'rgba(25,118,210,0.15)', border: '1px solid rgba(25,118,210,0.4)', borderRadius: 6, color: '#42A5F5', cursor: 'pointer', padding: '4px 10px', fontSize: 12, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
+                📊 Apostas
+              </button>
+              {/* Apagar (só fechado e não finalizado) */}
+              {m.status === 'fechado' && !m.resultado && (
+                <button onClick={() => apagarMercado(m.id, m.titulo)} style={{ background: 'rgba(229,57,53,0.15)', border: '1px solid rgba(229,57,53,0.4)', borderRadius: 6, color: '#E53935', cursor: 'pointer', padding: '4px 10px', fontSize: 12, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
+                  🗑️
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Ações */}
+          {!m.resultado && (
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {m.status === 'aberto' && (
+                <button className="btn-verde" style={{ fontSize: 13, padding: '6px 14px', background: '#F57C00' }} onClick={() => alterarStatus(m.id, 'fechado')}>
+                  🔒 Fechar Apostas
+                </button>
+              )}
+              {m.status === 'fechado' && (
+                <button className="btn-verde" style={{ fontSize: 13, padding: '6px 14px' }} onClick={() => alterarStatus(m.id, 'aberto')}>
+                  🟢 Reabrir Apostas
+                </button>
+              )}
+              {m.status === 'fechado' && (
+                <>
+                  <select
+                    value={resultado[m.id] || ''}
+                    onChange={e => setResultado({ ...resultado, [m.id]: e.target.value })}
+                    style={{ background: '#003D2B', color: '#fff', border: '1px solid #00874F', borderRadius: 6, padding: '6px 10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}
+                  >
+                    <option value="">Selecionar vencedor</option>
+                    {m.opcoes.map(op => <option key={op} value={op}>{op}</option>)}
+                  </select>
+                  <button
+                    className="btn-amarelo"
+                    style={{ fontSize: 13, padding: '6px 14px' }}
+                    onClick={() => finalizarMercado(m.id)}
+                    disabled={!!finalizando[m.id]}
+                  >
+                    {finalizando[m.id] ? 'Processando...' : '🏆 Confirmar Vencedor'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Admin principal ──────────────────────────────────────────────────────────
 export default function Admin() {
   const [logado, setLogado] = useState(() => !!localStorage.getItem('golbet_admin'));
@@ -558,7 +813,7 @@ export default function Admin() {
 
   if (!logado) return <AdminLogin onLogin={() => setLogado(true)} />;
 
-  const COMP = { dashboard: Dashboard, depositos: GestaoDepositos, saques: GestaoSaques, jogos: GestaoJogos, apostadores: GestaoApostadores };
+  const COMP = { dashboard: Dashboard, depositos: GestaoDepositos, saques: GestaoSaques, jogos: GestaoJogos, longoplazo: GestaoLongoPrazo, apostadores: GestaoApostadores };
   const Comp = COMP[aba];
 
   return (

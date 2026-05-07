@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Cadastro from './pages/Cadastro';
 import MeusPalpites from './pages/MeusPalpites';
+import LongoPrazo from './pages/LongoPrazo';
 import Extrato from './pages/Extrato';
 import Deposito from './pages/Deposito';
 import Saque from './pages/Saque';
@@ -52,6 +53,7 @@ function AppShell() {
         <main style={{ flex: 1, padding: '24px 20px', minWidth: 0, overflowX: 'hidden' }}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/longo-prazo" element={<LongoPrazo />} />
             <Route path="/palpites" element={<MeusPalpites />} />
             <Route path="/extrato" element={<Extrato />} />
             <Route path="/depositar" element={<Deposito />} />

@@ -123,6 +123,33 @@ async function initDB() {
     registrado_em DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // === LONGO PRAZO ===
+  // Mercados de aposta em vencedor de campeonato/torneio
+  await run(`CREATE TABLE IF NOT EXISTS mercados_longo_prazo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    opcoes TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'aberto',
+    resultado TEXT DEFAULT NULL,
+    pote_total REAL DEFAULT 0,
+    taxa_casa REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fechado_em DATETIME DEFAULT NULL
+  )`);
+
+  // Apostas em mercados de longo prazo (1 aposta por usuário por mercado)
+  await run(`CREATE TABLE IF NOT EXISTS apostas_longo_prazo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mercado_id INTEGER NOT NULL REFERENCES mercados_longo_prazo(id),
+    apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+    opcao_escolhida TEXT NOT NULL,
+    valor REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    premio REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mercado_id, apostador_id)
+  )`);
+
   await seedJogos();
 }
 

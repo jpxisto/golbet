@@ -212,4 +212,181 @@ router.get('/jogos/:id/relatorio', authAdmin, async (req, res) => {
   res.json({ jogo, apostas, poteTotal, taxaCasa: jogo.taxa_casa, potePremios: poteTotal * 0.9, por_resultado });
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// === LONGO PRAZO (admin) =====================================================
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Lista todos os mercados com contagem de apostas
+router.get('/longo-prazo/mercados', authAdmin, async (req, res) => {
+  try {
+    const mercados = await all(`
+      SELECT m.*, COUNT(a.id) as num_apostas
+      FROM mercados_longo_prazo m
+      LEFT JOIN apostas_longo_prazo a ON a.mercado_id = m.id
+      GROUP BY m.id
+      ORDER BY m.criado_em DESC
+    `);
+    res.json(mercados.map(m => ({ ...m, opcoes: JSON.parse(m.opcoes || '[]') })));
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// Criar novo mercado
+router.post('/longo-prazo/mercados', authAdmin, async (req, res) => {
+  const { titulo, opcoes } = req.body;
+  if (!titulo || !titulo.trim()) return res.status(400).json({ erro: 'Título obrigatório' });
+  if (!Array.isArray(opcoes) || opcoes.length < 2) {
+    return res.status(400).json({ erro: 'Informe pelo menos 2 opções' });
+  }
+  const opcoesLimpas = opcoes.map(o => o.trim()).filter(Boolean);
+  if (opcoesLimpas.length < 2) return res.status(400).json({ erro: 'Opções inválidas' });
+
+  try {
+    const result = await run(
+      `INSERT INTO mercados_longo_prazo (titulo, opcoes) VALUES (?, ?)`,
+      [titulo.trim(), JSON.stringify(opcoesLimpas)]
+    );
+    const mercado = await get('SELECT * FROM mercados_longo_prazo WHERE id = ?', [result.lastID]);
+    res.json({ ...mercado, opcoes: JSON.parse(mercado.opcoes) });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// Altera status do mercado (aberto ↔ fechado)
+router.patch('/longo-prazo/mercados/:id/status', authAdmin, async (req, res) => {
+  const { status } = req.body;
+  if (!['aberto', 'fechado'].includes(status)) {
+    return res.status(400).json({ erro: 'Status deve ser "aberto" ou "fechado"' });
+  }
+  const mercado = await get('SELECT * FROM mercados_longo_prazo WHERE id = ?', [req.params.id]);
+  if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
+  if (mercado.resultado) return res.status(400).json({ erro: 'Mercado já foi finalizado' });
+
+  try {
+    const fechadoEm = status === 'fechado' ? `CURRENT_TIMESTAMP` : 'NULL';
+    await run(
+      `UPDATE mercados_longo_prazo SET status = ?, fechado_em = ${fechadoEm} WHERE id = ?`,
+      [status, req.params.id]
+    );
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// Finaliza mercado: define resultado e distribui prêmios (90% do pote)
+router.patch('/longo-prazo/mercados/:id/finalizar', authAdmin, async (req, res) => {
+  const { resultado } = req.body;
+  if (!resultado || !resultado.trim()) return res.status(400).json({ erro: 'Resultado obrigatório' });
+
+  const mercadoId = parseInt(req.params.id);
+  const mercado = await get('SELECT * FROM mercados_longo_prazo WHERE id = ?', [mercadoId]);
+  if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
+  if (mercado.resultado) return res.status(400).json({ erro: 'Este mercado já foi finalizado' });
+
+  // Valida que o resultado é uma das opções válidas
+  const opcoes = JSON.parse(mercado.opcoes || '[]');
+  if (!opcoes.includes(resultado)) return res.status(400).json({ erro: 'Resultado não é uma opção válida deste mercado' });
+
+  try {
+    const apostas = await all('SELECT * FROM apostas_longo_prazo WHERE mercado_id = ?', [mercadoId]);
+    const poteTotal = apostas.reduce((s, a) => s + a.valor, 0);
+    const taxaCasa = poteTotal * 0.10;
+    const potePremios = poteTotal * 0.90;
+
+    const vencedoras = apostas.filter(a => a.opcao_escolhida === resultado);
+    const totalVencedores = vencedoras.reduce((s, a) => s + a.valor, 0);
+
+    const ops = [];
+
+    if (totalVencedores > 0) {
+      // Distribui proporcionalmente entre vencedores (mesmo padrão das apostas comuns)
+      vencedoras.forEach(aposta => {
+        const premio = (aposta.valor / totalVencedores) * potePremios;
+        ops.push({
+          sql: 'UPDATE apostadores SET saldo = saldo + ?, total_ganho = total_ganho + ? WHERE id = ?',
+          params: [premio, premio, aposta.apostador_id],
+        });
+        ops.push({
+          sql: `UPDATE apostas_longo_prazo SET status = 'ganhou', premio = ? WHERE id = ?`,
+          params: [premio, aposta.id],
+        });
+      });
+      // Perdedores
+      apostas.filter(a => a.opcao_escolhida !== resultado).forEach(a => {
+        ops.push({ sql: `UPDATE apostas_longo_prazo SET status = 'perdeu' WHERE id = ?`, params: [a.id] });
+      });
+    } else {
+      // Ninguém acertou: casa fica com tudo
+      apostas.forEach(a => {
+        ops.push({ sql: `UPDATE apostas_longo_prazo SET status = 'perdeu' WHERE id = ?`, params: [a.id] });
+      });
+    }
+
+    // Atualiza o mercado com resultado e dados finais
+    ops.push({
+      sql: `UPDATE mercados_longo_prazo SET status = 'fechado', resultado = ?, taxa_casa = ?, fechado_em = CURRENT_TIMESTAMP WHERE id = ?`,
+      params: [resultado, taxaCasa, mercadoId],
+    });
+
+    await transaction(ops);
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// Lista apostas de um mercado específico
+router.get('/longo-prazo/mercados/:id/apostas', authAdmin, async (req, res) => {
+  const mercado = await get('SELECT * FROM mercados_longo_prazo WHERE id = ?', [req.params.id]);
+  if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
+
+  try {
+    const apostas = await all(`
+      SELECT a.*, ap.nome, ap.telefone
+      FROM apostas_longo_prazo a
+      JOIN apostadores ap ON a.apostador_id = ap.id
+      WHERE a.mercado_id = ?
+      ORDER BY a.criado_em DESC
+    `, [req.params.id]);
+
+    const poteTotal = apostas.reduce((s, a) => s + a.valor, 0);
+    res.json({
+      mercado: { ...mercado, opcoes: JSON.parse(mercado.opcoes || '[]') },
+      apostas,
+      poteTotal,
+      potePremios: poteTotal * 0.9,
+      taxaCasa: poteTotal * 0.1,
+    });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// Apaga mercado (só se não tiver apostas ou estiver fechado sem resultado)
+router.delete('/longo-prazo/mercados/:id', authAdmin, async (req, res) => {
+  const mercado = await get('SELECT * FROM mercados_longo_prazo WHERE id = ?', [req.params.id]);
+  if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
+  if (mercado.resultado) return res.status(400).json({ erro: 'Não é possível apagar um mercado já finalizado' });
+  if (mercado.status === 'aberto') return res.status(400).json({ erro: 'Feche o mercado antes de apagar' });
+
+  try {
+    // Se há apostas pendentes, devolve o saldo aos apostadores antes de apagar
+    const apostas = await all('SELECT * FROM apostas_longo_prazo WHERE mercado_id = ?', [req.params.id]);
+    const ops = apostas.map(a => ({
+      sql: 'UPDATE apostadores SET saldo = saldo + ?, total_apostado = total_apostado - ? WHERE id = ?',
+      params: [a.valor, a.valor, a.apostador_id],
+    }));
+    ops.push({ sql: 'DELETE FROM apostas_longo_prazo WHERE mercado_id = ?', params: [req.params.id] });
+    ops.push({ sql: 'DELETE FROM mercados_longo_prazo WHERE id = ?', params: [req.params.id] });
+
+    await transaction(ops);
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
 module.exports = router;
