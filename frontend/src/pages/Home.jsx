@@ -33,6 +33,12 @@ export default function Home() {
 
   useEffect(() => { fetchData(); }, [usuario?.id]);
 
+  // Atualiza a lista de jogos a cada 45s — detecta quando o admin abre/fecha um jogo
+  useEffect(() => {
+    const iv = setInterval(fetchData, 45000);
+    return () => clearInterval(iv);
+  }, [usuario?.id]);
+
   const jogosFiltrados = filtro ? jogos.filter(j => j.status === filtro) : jogos;
   const apostaMap = {};
   minhasApostas.forEach(a => { apostaMap[a.jogo_id] = a; });

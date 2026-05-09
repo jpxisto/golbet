@@ -240,7 +240,7 @@ router.post('/apostar', async (req, res) => {
     if (!mercado) return res.status(404).json({ erro: 'Mercado artilheiro não encontrado para este jogo' });
     if (mercado.status !== 'aberto') return res.status(400).json({ erro: 'Este mercado não está aberto para apostas' });
 
-    const apostador = await get('SELECT * FROM apostadores WHERE id = ?', [apostador_id]);
+    const apostador = await get('SELECT id FROM apostadores WHERE id = ?', [apostador_id]);
     if (!apostador) return res.status(404).json({ erro: 'Apostador não encontrado' });
 
     const apostaExistente = await get(
@@ -251,21 +251,29 @@ router.post('/apostar', async (req, res) => {
     if (apostaExistente) {
       // EDITAR aposta (pode trocar de opção e/ou valor)
       const diff = valorNum - apostaExistente.valor;
-      if (diff > 0 && apostador.saldo < diff) {
-        return res.status(400).json({ erro: 'Saldo insuficiente' });
+      if (diff > 0) {
+        // Deduçao atômica anti-race-condition
+        const r = await run(
+          'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ? AND saldo >= ?',
+          [diff, diff, apostador_id, diff]
+        );
+        if (r.changes === 0) return res.status(400).json({ erro: 'Saldo insuficiente' });
       }
       await transaction([
         { sql: 'UPDATE apostas_artilheiros SET opcao_escolhida = ?, valor = ? WHERE id = ?', params: [opcao_escolhida, valorNum, apostaExistente.id] },
         { sql: 'UPDATE mercados_artilheiros SET pote_total = pote_total + ? WHERE id = ?', params: [diff, mercado.id] },
-        { sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?', params: [diff, diff, apostador_id] },
+        ...(diff <= 0 ? [{ sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?', params: [diff, diff, apostador_id] }] : []),
       ]);
     } else {
-      // NOVA aposta
-      if (apostador.saldo < valorNum) return res.status(400).json({ erro: 'Saldo insuficiente' });
+      // NOVA aposta — deduçao atômica anti-race-condition
+      const r = await run(
+        'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ? AND saldo >= ?',
+        [valorNum, valorNum, apostador_id, valorNum]
+      );
+      if (r.changes === 0) return res.status(400).json({ erro: 'Saldo insuficiente' });
       await transaction([
         { sql: 'INSERT INTO apostas_artilheiros (mercado_id, apostador_id, opcao_escolhida, valor) VALUES (?, ?, ?, ?)', params: [mercado.id, apostador_id, opcao_escolhida, valorNum] },
         { sql: 'UPDATE mercados_artilheiros SET pote_total = pote_total + ? WHERE id = ?', params: [valorNum, mercado.id] },
-        { sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?', params: [valorNum, valorNum, apostador_id] },
       ]);
     }
 

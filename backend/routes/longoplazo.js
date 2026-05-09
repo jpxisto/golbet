@@ -77,10 +77,9 @@ router.post('/:id/apostar', async (req, res) => {
       return res.status(400).json({ erro: 'Opção inválida para este mercado' });
     }
 
-    // Verifica se o apostador existe e tem saldo suficiente
-    const apostador = await get('SELECT * FROM apostadores WHERE id = ?', [apostador_id]);
+    // Verifica se o apostador existe
+    const apostador = await get('SELECT id FROM apostadores WHERE id = ?', [apostador_id]);
     if (!apostador) return res.status(404).json({ erro: 'Apostador não encontrado' });
-    if (apostador.saldo < valorNum) return res.status(400).json({ erro: 'Saldo insuficiente' });
 
     // Verifica se já apostou NESTA OPÇÃO específica (pode apostar em outras opções do mesmo mercado)
     const apostaExistente = await get(
@@ -91,24 +90,30 @@ router.post('/:id/apostar', async (req, res) => {
     if (apostaExistente) {
       // EDITAR aposta existente nesta opção
       const diff = valorNum - apostaExistente.valor;
-      if (diff > 0 && apostador.saldo < diff) {
-        return res.status(400).json({ erro: 'Saldo insuficiente para aumentar a aposta' });
+      if (diff > 0) {
+        // Deduçao atômica: só deduz se saldo cobrir o diff — evita race condition
+        const r = await run(
+          'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ? AND saldo >= ?',
+          [diff, diff, apostador_id, diff]
+        );
+        if (r.changes === 0) return res.status(400).json({ erro: 'Saldo insuficiente' });
       }
       await transaction([
         { sql: 'UPDATE apostas_longo_prazo SET valor = ? WHERE id = ?', params: [valorNum, apostaExistente.id] },
         { sql: 'UPDATE mercados_longo_prazo SET pote_total = pote_total + ? WHERE id = ?', params: [diff, mercadoId] },
-        { sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?', params: [diff, diff, apostador_id] },
+        ...(diff <= 0 ? [{ sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?', params: [diff, diff, apostador_id] }] : []),
       ]);
       const atualizado = await get('SELECT saldo FROM apostadores WHERE id = ?', [apostador_id]);
       return res.json({ sucesso: true, saldo: atualizado.saldo, editado: true });
     }
 
-    // NOVA aposta (nesta opção ainda não apostada)
+    // NOVA aposta — deduçao atômica anti-race-condition
+    const r = await run(
+      'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ? AND saldo >= ?',
+      [valorNum, valorNum, apostador_id, valorNum]
+    );
+    if (r.changes === 0) return res.status(400).json({ erro: 'Saldo insuficiente' });
     await transaction([
-      {
-        sql: 'UPDATE apostadores SET saldo = saldo - ?, total_apostado = total_apostado + ? WHERE id = ?',
-        params: [valorNum, valorNum, apostador_id],
-      },
       {
         sql: `INSERT INTO apostas_longo_prazo (mercado_id, apostador_id, opcao_escolhida, valor) VALUES (?, ?, ?, ?)`,
         params: [mercadoId, apostador_id, opcao_escolhida, valorNum],

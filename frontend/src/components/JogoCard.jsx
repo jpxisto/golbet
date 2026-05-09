@@ -198,10 +198,10 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
 
   useEffect(() => { fetchArtilheiro(); }, [jogo.id, usuario?.id]);
 
-  // Poll artilheiro a cada 20s independente do status do jogo
+  // Poll artilheiro a cada 60s independente do status do jogo
   // (para clientes verem nomes de jogadores e resultados assim que o admin atualizar)
   useEffect(() => {
-    const iv = setInterval(fetchArtilheiro, 20000);
+    const iv = setInterval(fetchArtilheiro, 60000);
     return () => clearInterval(iv);
   }, [jogo.id, usuario?.id]);
 

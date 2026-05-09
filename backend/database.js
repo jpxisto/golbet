@@ -43,6 +43,12 @@ async function transaction(ops) {
 async function initDB() {
   await run('PRAGMA journal_mode = WAL');
   await run('PRAGMA foreign_keys = ON');
+  // Evita SQLITE_BUSY imediato sob carga concorrente: espera até 8s antes de falhar
+  await run('PRAGMA busy_timeout = 8000');
+  // WAL + NORMAL dá boa durabilidade sem o custo de FULL
+  await run('PRAGMA synchronous = NORMAL');
+  // Cache maior reduz leituras de disco
+  await run('PRAGMA cache_size = -8000'); // 8MB
 
   await run(`CREATE TABLE IF NOT EXISTS apostadores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -182,16 +188,22 @@ async function initDB() {
   }
 
   // === ARTILHEIROS ===
-  // Mercado de artilheiro por jogo (quem marca mais gols: time_a | empate | time_b)
+  // Mercado de artilheiro por jogo (quem marca mais gols)
   await run(`CREATE TABLE IF NOT EXISTS mercados_artilheiros (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     jogo_id INTEGER NOT NULL REFERENCES jogos(id),
+    jogador_a TEXT DEFAULT NULL,
+    jogador_b TEXT DEFAULT NULL,
     status TEXT NOT NULL DEFAULT 'aberto',
     resultado TEXT DEFAULT NULL,
     pote_total REAL DEFAULT 0,
     taxa_casa REAL DEFAULT 0,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // Migração: adicionar colunas jogador_a e jogador_b se ainda não existirem
+  try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_a TEXT DEFAULT NULL'); } catch {}
+  try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_b TEXT DEFAULT NULL'); } catch {}
 
   await run(`CREATE TABLE IF NOT EXISTS apostas_artilheiros (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
