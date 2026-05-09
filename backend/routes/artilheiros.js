@@ -31,20 +31,49 @@ router.get('/admin/lista', authAdmin, async (req, res) => {
 
 // ── Admin: criar mercado artilheiro para um jogo ──────────────────────────────
 router.post('/admin/criar', authAdmin, async (req, res) => {
-  const { jogo_id } = req.body;
+  const { jogo_id, jogador_a, jogador_b } = req.body;
   if (!jogo_id) return res.status(400).json({ erro: 'jogo_id obrigatório' });
 
   try {
+    // Garantir que as colunas existem (migration defensiva)
+    try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_a TEXT DEFAULT NULL'); } catch {}
+    try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_b TEXT DEFAULT NULL'); } catch {}
+
     const jogo = await get('SELECT * FROM jogos WHERE id = ?', [jogo_id]);
     if (!jogo) return res.status(404).json({ erro: 'Jogo não encontrado' });
 
     const existente = await get('SELECT id FROM mercados_artilheiros WHERE jogo_id = ?', [jogo_id]);
     if (existente) return res.status(409).json({ erro: 'Já existe mercado artilheiro para este jogo' });
 
-    const r = await run('INSERT INTO mercados_artilheiros (jogo_id) VALUES (?)', [jogo_id]);
+    const r = await run(
+      'INSERT INTO mercados_artilheiros (jogo_id, jogador_a, jogador_b) VALUES (?, ?, ?)',
+      [jogo_id, jogador_a || null, jogador_b || null]
+    );
     res.json({ sucesso: true, id: r.lastID });
   } catch (e) {
-    res.status(500).json({ erro: 'Erro interno' });
+    res.status(500).json({ erro: 'Erro ao criar artilheiro: ' + e.message });
+  }
+});
+
+// ── Admin: editar nomes dos jogadores ────────────────────────────────────────
+router.patch('/admin/:id/jogadores', authAdmin, async (req, res) => {
+  const { jogador_a, jogador_b } = req.body;
+  try {
+    // Garantir que as colunas existem (migration defensiva)
+    try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_a TEXT DEFAULT NULL'); } catch {}
+    try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_b TEXT DEFAULT NULL'); } catch {}
+
+    const mercado = await get('SELECT * FROM mercados_artilheiros WHERE id = ?', [req.params.id]);
+    if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
+    if (mercado.resultado) return res.status(400).json({ erro: 'Mercado finalizado não pode ser editado' });
+
+    await run(
+      'UPDATE mercados_artilheiros SET jogador_a = ?, jogador_b = ? WHERE id = ?',
+      [jogador_a || null, jogador_b || null, req.params.id]
+    );
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro ao salvar jogadores: ' + e.message });
   }
 });
 
@@ -65,6 +94,7 @@ router.patch('/admin/:id/status', authAdmin, async (req, res) => {
 // ── Admin: finalizar mercado e distribuir prêmios ─────────────────────────────
 router.patch('/admin/:id/finalizar', authAdmin, async (req, res) => {
   const { resultado } = req.body;
+  // resultado deve ser 'A', 'empate' ou 'B' (códigos internos)
   if (!['A', 'empate', 'B'].includes(resultado)) {
     return res.status(400).json({ erro: 'Resultado inválido (A | empate | B)' });
   }
@@ -95,11 +125,6 @@ router.patch('/admin/:id/finalizar', authAdmin, async (req, res) => {
         ops.push({ sql: 'UPDATE apostas_artilheiros SET status = ?, premio = ? WHERE id = ?', params: ['ganhou', premio, a.id] });
         ops.push({ sql: 'UPDATE apostadores SET saldo = saldo + ?, total_ganho = total_ganho + ? WHERE id = ?', params: [premio, premio, a.apostador_id] });
       });
-    } else {
-      // Sem vencedores: devolver tudo ao pote (não há como distribuir)
-      vencedores.forEach(a => {
-        ops.push({ sql: 'UPDATE apostas_artilheiros SET status = ? WHERE id = ?', params: ['pendente', a.id] });
-      });
     }
 
     // Fechar mercado com resultado
@@ -127,7 +152,6 @@ router.delete('/admin/:id', authAdmin, async (req, res) => {
     const apostas = await all('SELECT * FROM apostas_artilheiros WHERE mercado_id = ?', [mercado.id]);
     const ops = [];
 
-    // Devolver saldo a todos os apostadores
     apostas.forEach(a => {
       ops.push({ sql: 'UPDATE apostadores SET saldo = saldo + ?, total_apostado = total_apostado - ? WHERE id = ?', params: [a.valor, a.valor, a.apostador_id] });
     });
@@ -199,6 +223,7 @@ router.post('/apostar', async (req, res) => {
     return res.status(400).json({ erro: 'Valor mínimo de R$ 5,00' });
   }
 
+  // opcao_escolhida deve ser 'A', 'empate' ou 'B'
   if (!['A', 'empate', 'B'].includes(opcao_escolhida)) {
     return res.status(400).json({ erro: 'Opção inválida (A | empate | B)' });
   }

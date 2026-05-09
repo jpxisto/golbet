@@ -137,13 +137,25 @@ router.patch('/jogos/:id/visivel', authAdmin, async (req, res) => {
 
 // Apagar jogo (só se não estiver aberto)
 router.delete('/jogos/:id', authAdmin, async (req, res) => {
-  const jogo = await get('SELECT * FROM jogos WHERE id = ?', [req.params.id]);
-  if (!jogo) return res.status(404).json({ erro: 'Jogo não encontrado' });
-  if (jogo.status === 'aberto') return res.status(400).json({ erro: 'Feche o mercado antes de apagar o jogo.' });
-  await run('DELETE FROM apostas WHERE jogo_id = ?', [req.params.id]);
-  await run('DELETE FROM lucro_casa WHERE jogo_id = ?', [req.params.id]);
-  await run('DELETE FROM jogos WHERE id = ?', [req.params.id]);
-  res.json({ sucesso: true });
+  try {
+    const jogo = await get('SELECT * FROM jogos WHERE id = ?', [req.params.id]);
+    if (!jogo) return res.status(404).json({ erro: 'Jogo não encontrado' });
+    if (jogo.status === 'aberto') return res.status(400).json({ erro: 'Feche o mercado antes de apagar o jogo.' });
+
+    // Apagar mercado artilheiro vinculado (FK constraint)
+    const artMercado = await get('SELECT id FROM mercados_artilheiros WHERE jogo_id = ?', [req.params.id]);
+    if (artMercado) {
+      await run('DELETE FROM apostas_artilheiros WHERE mercado_id = ?', [artMercado.id]);
+      await run('DELETE FROM mercados_artilheiros WHERE id = ?', [artMercado.id]);
+    }
+
+    await run('DELETE FROM apostas WHERE jogo_id = ?', [req.params.id]);
+    await run('DELETE FROM lucro_casa WHERE jogo_id = ?', [req.params.id]);
+    await run('DELETE FROM jogos WHERE id = ?', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro ao apagar jogo: ' + e.message });
+  }
 });
 
 router.patch('/jogos/:id/status', authAdmin, async (req, res) => {
