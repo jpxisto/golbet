@@ -225,6 +225,42 @@ router.get('/jogos/:id/relatorio', authAdmin, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// === APOSTADORES (admin) =====================================================
+
+// Resetar senha de um apostador
+router.patch('/apostadores/:id/resetar-senha', authAdmin, async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const { nova_senha } = req.body;
+  if (!nova_senha || nova_senha.length < 4)
+    return res.status(400).json({ erro: 'Nova senha deve ter pelo menos 4 caracteres' });
+
+  const apostador = await get('SELECT id, nome FROM apostadores WHERE id = ?', [req.params.id]);
+  if (!apostador) return res.status(404).json({ erro: 'Apostador não encontrado' });
+
+  const hash = await bcrypt.hash(nova_senha, 10);
+  await run('UPDATE apostadores SET senha = ? WHERE id = ?', [hash, req.params.id]);
+  res.json({ sucesso: true, nome: apostador.nome });
+});
+
+// Ajustar saldo manualmente (crédito ou débito)
+router.patch('/apostadores/:id/ajustar-saldo', authAdmin, async (req, res) => {
+  const { valor, motivo } = req.body;
+  const num = parseFloat(valor);
+  if (isNaN(num) || num === 0)
+    return res.status(400).json({ erro: 'Informe um valor diferente de zero' });
+  if (!motivo || !motivo.trim())
+    return res.status(400).json({ erro: 'Motivo obrigatório' });
+
+  const apostador = await get('SELECT id, nome, saldo FROM apostadores WHERE id = ?', [req.params.id]);
+  if (!apostador) return res.status(404).json({ erro: 'Apostador não encontrado' });
+
+  const novoSaldo = parseFloat(apostador.saldo) + num;
+  if (novoSaldo < 0) return res.status(400).json({ erro: 'Saldo ficaria negativo' });
+
+  await run('UPDATE apostadores SET saldo = ? WHERE id = ?', [novoSaldo, req.params.id]);
+  res.json({ sucesso: true, nome: apostador.nome, saldo_anterior: apostador.saldo, novo_saldo: novoSaldo });
+});
+
 // === LONGO PRAZO (admin) =====================================================
 // ═══════════════════════════════════════════════════════════════════════════════
 

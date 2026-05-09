@@ -721,38 +721,193 @@ function GestaoJogos() {
 function GestaoApostadores() {
   const { headers } = useAdmin();
   const [lista, setLista] = useState([]);
+  const [expandido, setExpandido] = useState(null);
+  const [busca, setBusca] = useState('');
 
-  useEffect(() => {
+  // Reset de senha
+  const [resetId, setResetId]     = useState(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [resetMsg, setResetMsg]   = useState({});
+
+  // Ajuste de saldo
+  const [ajusteId, setAjusteId]     = useState(null);
+  const [ajusteValor, setAjusteValor] = useState('');
+  const [ajusteMotivo, setAjusteMotivo] = useState('');
+  const [ajusteMsg, setAjusteMsg]   = useState({});
+
+  const fetchLista = useCallback(() => {
     axios.get('/api/admin/apostadores', { headers }).then(r => setLista(r.data)).catch(() => {});
   }, []);
 
+  useEffect(() => { fetchLista(); }, [fetchLista]);
+
+  async function resetarSenha(id) {
+    if (!novaSenha || novaSenha.length < 4) return setResetMsg({ [id]: '⚠️ Mínimo 4 caracteres' });
+    try {
+      const r = await axios.patch(`/api/admin/apostadores/${id}/resetar-senha`, { nova_senha: novaSenha }, { headers });
+      setResetMsg({ [id]: `✅ Senha de "${r.data.nome}" redefinida!` });
+      setNovaSenha('');
+      setResetId(null);
+    } catch (e) {
+      setResetMsg({ [id]: '❌ ' + (e.response?.data?.erro || 'Erro') });
+    }
+  }
+
+  async function ajustarSaldo(id) {
+    const num = parseFloat(ajusteValor);
+    if (!num || isNaN(num)) return setAjusteMsg({ [id]: '⚠️ Valor inválido' });
+    if (!ajusteMotivo.trim()) return setAjusteMsg({ [id]: '⚠️ Informe o motivo' });
+    try {
+      const r = await axios.patch(`/api/admin/apostadores/${id}/ajustar-saldo`, { valor: num, motivo: ajusteMotivo }, { headers });
+      setAjusteMsg({ [id]: `✅ Saldo de "${r.data.nome}" → R$ ${Number(r.data.novo_saldo).toFixed(2)}` });
+      setAjusteValor('');
+      setAjusteMotivo('');
+      setAjusteId(null);
+      fetchLista();
+    } catch (e) {
+      setAjusteMsg({ [id]: '❌ ' + (e.response?.data?.erro || 'Erro') });
+    }
+  }
+
+  const filtrados = lista.filter(a =>
+    !busca || a.nome.toLowerCase().includes(busca.toLowerCase()) || (a.telefone || '').includes(busca)
+  );
+
   return (
     <div>
-      {lista.length === 0 && <p style={{ color: '#B0BEC5' }}>Nenhum apostador cadastrado.</p>}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#003D2B', color: '#B0BEC5' }}>
-              {['Nome', 'Telefone', 'Saldo', 'Depositado', 'Apostado', 'Ganho', 'Sacado'].map(h => (
-                <th key={h} style={{ padding: '10px 12px', textAlign: 'left', borderBottom: '1px solid rgba(0,135,79,0.3)', fontWeight: 600 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {lista.map((a, i) => (
-              <tr key={a.id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.1)' }}>
-                <td style={{ padding: '9px 12px', fontWeight: 600 }}>{a.nome}</td>
-                <td style={{ padding: '9px 12px', color: '#B0BEC5' }}>{a.telefone}</td>
-                <td style={{ padding: '9px 12px', color: '#F5D020', fontWeight: 700 }}>R$ {Number(a.saldo).toFixed(2)}</td>
-                <td style={{ padding: '9px 12px', color: '#43A047' }}>R$ {Number(a.total_depositado).toFixed(2)}</td>
-                <td style={{ padding: '9px 12px', color: '#E53935' }}>R$ {Number(a.total_apostado).toFixed(2)}</td>
-                <td style={{ padding: '9px 12px', color: '#43A047' }}>R$ {Number(a.total_ganho).toFixed(2)}</td>
-                <td style={{ padding: '9px 12px', color: '#B0BEC5' }}>R$ {Number(a.total_sacado).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Busca */}
+      <input
+        className="input-golbet"
+        placeholder="🔍 Buscar por nome ou telefone..."
+        value={busca}
+        onChange={e => setBusca(e.target.value)}
+        style={{ marginBottom: 14, width: '100%', maxWidth: 340 }}
+      />
+
+      {filtrados.length === 0 && <p style={{ color: '#B0BEC5' }}>Nenhum apostador encontrado.</p>}
+
+      {filtrados.map(a => {
+        const aberto = expandido === a.id;
+        return (
+          <div key={a.id} className="card-golbet" style={{ marginBottom: 10 }}>
+            {/* Linha principal */}
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', gap: 10 }}
+              onClick={() => { setExpandido(aberto ? null : a.id); setResetId(null); setAjusteId(null); }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{a.nome}</div>
+                <div style={{ fontSize: 12, color: '#B0BEC5', marginTop: 2 }}>{a.telefone || 'sem telefone'} · cadastrado {new Date(a.criado_em).toLocaleDateString('pt-BR')}</div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#F5D020' }}>R$ {Number(a.saldo).toFixed(2)}</div>
+                <div style={{ fontSize: 11, color: '#B0BEC5' }}>saldo</div>
+              </div>
+              {aberto ? <ChevronUp size={16} style={{ color: '#B0BEC5', flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: '#B0BEC5', flexShrink: 0 }} />}
+            </div>
+
+            {/* Detalhes expandidos */}
+            {aberto && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(0,194,100,0.1)' }}>
+                {/* Estatísticas */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
+                  {[
+                    { label: 'Total depositado', val: `R$ ${Number(a.total_depositado).toFixed(2)}`, color: '#43A047' },
+                    { label: 'Total apostado',   val: `R$ ${Number(a.total_apostado).toFixed(2)}`,   color: '#E53935' },
+                    { label: 'Total ganho',      val: `R$ ${Number(a.total_ganho).toFixed(2)}`,      color: '#43A047' },
+                    { label: 'Total sacado',     val: `R$ ${Number(a.total_sacado).toFixed(2)}`,     color: '#B0BEC5' },
+                  ].map(item => (
+                    <div key={item.label} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 11, color: '#B0BEC5', marginBottom: 2 }}>{item.label}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: item.color }}>{item.val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Botões de ação */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  <button
+                    onClick={() => { setResetId(resetId === a.id ? null : a.id); setAjusteId(null); setNovaSenha(''); }}
+                    style={{ padding: '7px 14px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                      background: resetId === a.id ? '#1565C0' : 'rgba(21,101,192,0.2)',
+                      color: '#90CAF9', border: '1px solid rgba(21,101,192,0.4)' }}
+                  >
+                    🔑 Redefinir senha
+                  </button>
+                  <button
+                    onClick={() => { setAjusteId(ajusteId === a.id ? null : a.id); setResetId(null); setAjusteValor(''); setAjusteMotivo(''); }}
+                    style={{ padding: '7px 14px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                      background: ajusteId === a.id ? '#E65100' : 'rgba(230,81,0,0.15)',
+                      color: '#FFCC80', border: '1px solid rgba(230,81,0,0.35)' }}
+                  >
+                    💰 Ajustar saldo
+                  </button>
+                </div>
+
+                {/* Form: reset de senha */}
+                {resetId === a.id && (
+                  <div style={{ background: 'rgba(21,101,192,0.1)', border: '1px solid rgba(21,101,192,0.3)', borderRadius: 8, padding: 14, marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, color: '#90CAF9', fontWeight: 700, marginBottom: 10 }}>🔑 Nova senha para {a.nome}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <input
+                        className="input-golbet"
+                        type="text"
+                        placeholder="Nova senha (mín. 4 caracteres)"
+                        value={novaSenha}
+                        onChange={e => setNovaSenha(e.target.value)}
+                        style={{ flex: 1, minWidth: 180 }}
+                        onKeyDown={e => e.key === 'Enter' && resetarSenha(a.id)}
+                      />
+                      <button
+                        onClick={() => resetarSenha(a.id)}
+                        style={{ padding: '8px 16px', background: '#1565C0', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 700, cursor: 'pointer', fontSize: 13, fontFamily: 'Inter, sans-serif' }}
+                      >
+                        Salvar
+                      </button>
+                    </div>
+                    {resetMsg[a.id] && <div style={{ marginTop: 8, fontSize: 13, color: resetMsg[a.id].startsWith('✅') ? '#43A047' : '#E53935' }}>{resetMsg[a.id]}</div>}
+                  </div>
+                )}
+
+                {/* Form: ajuste de saldo */}
+                {ajusteId === a.id && (
+                  <div style={{ background: 'rgba(230,81,0,0.08)', border: '1px solid rgba(230,81,0,0.3)', borderRadius: 8, padding: 14, marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, color: '#FFCC80', fontWeight: 700, marginBottom: 10 }}>💰 Ajustar saldo de {a.nome} (saldo atual: R$ {Number(a.saldo).toFixed(2)})</div>
+                    <div style={{ fontSize: 12, color: '#B0BEC5', marginBottom: 8 }}>Use valor positivo para crédito, negativo para débito. Ex: 50 ou -20</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                      <input
+                        className="input-golbet"
+                        type="number"
+                        step="0.01"
+                        placeholder="Valor (+50 ou -20)"
+                        value={ajusteValor}
+                        onChange={e => setAjusteValor(e.target.value)}
+                        style={{ flex: 1, minWidth: 130 }}
+                      />
+                      <input
+                        className="input-golbet"
+                        type="text"
+                        placeholder="Motivo (ex: bônus, correção)"
+                        value={ajusteMotivo}
+                        onChange={e => setAjusteMotivo(e.target.value)}
+                        style={{ flex: 2, minWidth: 180 }}
+                        onKeyDown={e => e.key === 'Enter' && ajustarSaldo(a.id)}
+                      />
+                      <button
+                        onClick={() => ajustarSaldo(a.id)}
+                        style={{ padding: '8px 16px', background: '#E65100', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 700, cursor: 'pointer', fontSize: 13, fontFamily: 'Inter, sans-serif' }}
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                    {ajusteMsg[a.id] && <div style={{ fontSize: 13, color: ajusteMsg[a.id].startsWith('✅') ? '#43A047' : '#E53935' }}>{ajusteMsg[a.id]}</div>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
