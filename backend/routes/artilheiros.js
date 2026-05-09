@@ -196,7 +196,14 @@ router.get('/:jogoId', async (req, res) => {
   const apostadorId = req.headers['apostador-id'];
 
   try {
-    const mercado = await get('SELECT * FROM mercados_artilheiros WHERE jogo_id = ?', [jogoId]);
+    // Garantir colunas antes de consultar
+    try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_a TEXT DEFAULT NULL'); } catch {}
+    try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_b TEXT DEFAULT NULL'); } catch {}
+
+    const mercado = await get(
+      'SELECT id, jogo_id, jogador_a, jogador_b, status, resultado, pote_total, taxa_casa, criado_em FROM mercados_artilheiros WHERE jogo_id = ?',
+      [jogoId]
+    );
     if (!mercado) return res.json({ mercado: null, minhaAposta: null });
 
     let minhaAposta = null;

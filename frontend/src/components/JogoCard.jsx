@@ -13,7 +13,7 @@ const STATUS_CONFIG = {
 };
 
 // ── Drawer de aposta no artilheiro ─────────────────────────────────────────────
-function ArtilheiroDrawer({ jogo, opcaoSelecionada, valorInicial, onClose, onSucesso }) {
+function ArtilheiroDrawer({ jogo, mercadoArt, opcaoSelecionada, valorInicial, onClose, onSucesso }) {
   const { usuario, saldo, fetchSaldo, addToast } = useAuth();
   const [valor, setValor] = useState(valorInicial ? String(valorInicial) : '');
   const [confirmando, setConfirmando] = useState(false);
@@ -22,8 +22,12 @@ function ArtilheiroDrawer({ jogo, opcaoSelecionada, valorInicial, onClose, onSuc
 
   if (!jogo || !opcaoSelecionada) return null;
 
-  const nomeOpcao = opcaoSelecionada === 'A' ? `${jogo.flag_a} ${jogo.time_a}`
-    : opcaoSelecionada === 'B' ? `${jogo.flag_b} ${jogo.time_b}` : '🤝 Empate';
+  // Usa nome do jogador se definido, senão nome do time
+  const nomeOpcao = opcaoSelecionada === 'A'
+    ? (mercadoArt?.jogador_a || `${jogo.flag_a} ${jogo.time_a}`)
+    : opcaoSelecionada === 'B'
+    ? (mercadoArt?.jogador_b || `${jogo.flag_b} ${jogo.time_b}`)
+    : '🤝 Empate';
   const valorNum = parseFloat(valor) || 0;
   const saldoEfetivo = modoEdicao ? saldo + (valorInicial || 0) : saldo;
   const saldoInsuficiente = valorNum > saldoEfetivo;
@@ -194,11 +198,17 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
 
   useEffect(() => { fetchArtilheiro(); }, [jogo.id, usuario?.id]);
 
+  // Poll artilheiro a cada 20s independente do status do jogo
+  // (para clientes verem nomes de jogadores e resultados assim que o admin atualizar)
+  useEffect(() => {
+    const iv = setInterval(fetchArtilheiro, 20000);
+    return () => clearInterval(iv);
+  }, [jogo.id, usuario?.id]);
+
   useEffect(() => {
     if (jogo.status !== 'aberto') return;
     const iv = setInterval(async () => {
       try { const { data } = await axios.get(`/api/jogos/${jogo.id}`); setJogo(data); } catch {}
-      fetchArtilheiro();
     }, 10000);
     return () => clearInterval(iv);
   }, [jogo.id, jogo.status]);
@@ -322,64 +332,79 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
           </div>
 
           {/* Seção Artilheiro */}
-          {artilheiro && artilheiro.mercado && (
-            <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,194,100,0.12)', background: 'rgba(0,0,0,0.18)' }}>
-              <div style={{ fontSize: 10, color: 'var(--texto-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8, textAlign: 'center' }}>
-                ⚽ Quem marca mais?
-              </div>
-              <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
-                {[
-                  { key: 'A', label: `${jogo.flag_a} ${jogo.time_a}` },
-                  { key: 'empate', label: '🤝 Empate' },
-                  { key: 'B', label: `${jogo.flag_b} ${jogo.time_b}` },
-                ].map(({ key, label }) => {
-                  const artAberto = artilheiro.mercado.status === 'aberto';
-                  const minha = artilheiro.minhaAposta;
-                  const selected = minha?.opcao_escolhida === key;
-                  const vencedor = artilheiro.mercado.resultado === key;
-                  return (
-                    <button
-                      key={key}
-                      disabled={!artAberto || !usuario}
-                      onClick={() => artAberto && usuario && setDrawerArt(key)}
-                      style={{
-                        flex: 1, padding: '7px 4px', borderRadius: 7,
-                        cursor: (!artAberto || !usuario) ? 'default' : 'pointer',
-                        background: selected
-                          ? 'linear-gradient(135deg, rgba(255,208,0,0.18),rgba(255,208,0,0.08))'
-                          : vencedor ? 'rgba(0,194,100,0.12)' : 'rgba(0,0,0,0.25)',
-                        border: selected ? '2px solid rgba(255,208,0,0.5)' : vencedor ? '1px solid rgba(0,194,100,0.4)' : '1px solid rgba(0,194,100,0.12)',
-                        color: selected ? '#FFD000' : vencedor ? '#00C264' : 'rgba(255,255,255,0.7)',
-                        fontSize: 10, fontWeight: selected || vencedor ? 700 : 500,
-                        transition: 'all 0.15s', fontFamily: 'inherit',
-                      }}
-                    >
-                      {vencedor && !selected ? '✅ ' : selected ? '✓ ' : ''}{label}
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {artilheiro.minhaAposta ? (
-                  <span style={{ fontSize: 10, color: 'rgba(255,208,0,0.8)' }}>
-                    Sua aposta: <strong>{
-                      artilheiro.minhaAposta.opcao_escolhida === 'A' ? `${jogo.flag_a} ${jogo.time_a}` :
-                      artilheiro.minhaAposta.opcao_escolhida === 'B' ? `${jogo.flag_b} ${jogo.time_b}` : '🤝 Empate'
-                    }</strong> · R$ {Number(artilheiro.minhaAposta.valor).toFixed(2)}
-                    {artilheiro.minhaAposta.status === 'ganhou' && <span style={{ color: '#00C264' }}> +R$ {Number(artilheiro.minhaAposta.premio).toFixed(2)} ✅</span>}
-                    {artilheiro.minhaAposta.status === 'perdeu' && <span style={{ color: 'var(--vermelho)' }}> ❌</span>}
-                  </span>
-                ) : (
+          {artilheiro && artilheiro.mercado && (() => {
+            const art = artilheiro.mercado;
+            // Labels dos botões — usa nome do jogador se definido, senão nome do time
+            const labelA = art.jogador_a || `${jogo.flag_a} ${jogo.time_a}`;
+            const labelB = art.jogador_b || `${jogo.flag_b} ${jogo.time_b}`;
+            const opcoes = [
+              { key: 'A', label: labelA },
+              { key: 'empate', label: '🤝 Empate' },
+              { key: 'B', label: labelB },
+            ];
+            // Label da aposta existente do usuário
+            const labelAposta = artilheiro.minhaAposta
+              ? artilheiro.minhaAposta.opcao_escolhida === 'A' ? labelA
+                : artilheiro.minhaAposta.opcao_escolhida === 'B' ? labelB
+                : '🤝 Empate'
+              : null;
+            // Label do resultado
+            const labelResultado = art.resultado === 'A' ? labelA : art.resultado === 'B' ? labelB : '🤝 Empate';
+
+            return (
+              <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,194,100,0.12)', background: 'rgba(0,0,0,0.18)' }}>
+                <div style={{ fontSize: 10, color: 'var(--texto-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8, textAlign: 'center' }}>
+                  ⚽ Artilheiro — quem marca mais?
+                </div>
+                <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+                  {opcoes.map(({ key, label }) => {
+                    const artAberto = art.status === 'aberto';
+                    const minha = artilheiro.minhaAposta;
+                    const selected = minha?.opcao_escolhida === key;
+                    const vencedor = art.resultado === key;
+                    return (
+                      <button
+                        key={key}
+                        disabled={!artAberto || !usuario}
+                        onClick={() => artAberto && usuario && setDrawerArt(key)}
+                        style={{
+                          flex: 1, padding: '7px 4px', borderRadius: 7,
+                          cursor: (!artAberto || !usuario) ? 'default' : 'pointer',
+                          background: selected
+                            ? 'linear-gradient(135deg, rgba(255,208,0,0.18),rgba(255,208,0,0.08))'
+                            : vencedor ? 'rgba(0,194,100,0.12)' : 'rgba(0,0,0,0.25)',
+                          border: selected ? '2px solid rgba(255,208,0,0.5)' : vencedor ? '1px solid rgba(0,194,100,0.4)' : '1px solid rgba(0,194,100,0.12)',
+                          color: selected ? '#FFD000' : vencedor ? '#00C264' : 'rgba(255,255,255,0.7)',
+                          fontSize: 10, fontWeight: selected || vencedor ? 700 : 500,
+                          transition: 'all 0.15s', fontFamily: 'inherit',
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {vencedor && !selected ? '✅ ' : selected ? '✓ ' : ''}{label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {artilheiro.minhaAposta ? (
+                    <span style={{ fontSize: 10, color: 'rgba(255,208,0,0.8)' }}>
+                      Sua aposta: <strong>{labelAposta}</strong>
+                      {' · '}R$ {Number(artilheiro.minhaAposta.valor).toFixed(2)}
+                      {artilheiro.minhaAposta.status === 'ganhou' && <span style={{ color: '#00C264' }}> +R$ {Number(artilheiro.minhaAposta.premio).toFixed(2)} ✅</span>}
+                      {artilheiro.minhaAposta.status === 'perdeu' && <span style={{ color: 'var(--vermelho)' }}> ❌</span>}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 10, color: 'var(--texto-muted)' }}>
+                      {art.status === 'aberto' ? (usuario ? 'Clique para apostar' : 'Faça login para apostar') : art.resultado ? `Artilheiro: ${labelResultado}` : 'Apostas encerradas'}
+                    </span>
+                  )}
                   <span style={{ fontSize: 10, color: 'var(--texto-muted)' }}>
-                    {artilheiro.mercado.status === 'aberto' ? (usuario ? 'Clique para apostar' : 'Faça login para apostar') : 'Apostas encerradas'}
+                    Pote: <span style={{ color: '#FFD000', fontWeight: 600 }}>R$ {Number(art.pote_total || 0).toFixed(2)}</span>
                   </span>
-                )}
-                <span style={{ fontSize: 10, color: 'var(--texto-muted)' }}>
-                  Pote: <span style={{ color: '#FFD000', fontWeight: 600 }}>R$ {Number(artilheiro.mercado.pote_total || 0).toFixed(2)}</span>
-                </span>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Footer */}
           <div style={{
@@ -453,6 +478,7 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
       {drawerArt && (
         <ArtilheiroDrawer
           jogo={jogo}
+          mercadoArt={artilheiro?.mercado}
           opcaoSelecionada={drawerArt}
           valorInicial={artilheiro?.minhaAposta?.opcao_escolhida === drawerArt ? artilheiro?.minhaAposta?.valor : undefined}
           onClose={() => setDrawerArt(null)}
