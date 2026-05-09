@@ -95,17 +95,23 @@ export default function Saque() {
 
       {meusSaques.length > 0 && (
         <div>
-          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Meus saques</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--texto-sec)' }}>Meus saques</h3>
           {meusSaques.map(s => (
-            <div key={s.id} className="card-golbet" style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ fontWeight: 700 }}>R$ {Number(s.valor).toFixed(2)}</div>
-                <div style={{ fontSize: 12, color: '#B0BEC5' }}>{TIPOS_LABEL[s.tipo_pix]}: {s.chave_pix_cliente}</div>
-                <div style={{ fontSize: 12, color: '#B0BEC5' }}>{new Date(s.criado_em).toLocaleString('pt-BR')}</div>
-                {s.motivo_rejeicao && <div style={{ fontSize: 12, color: '#E53935', marginTop: 2 }}>Motivo: {s.motivo_rejeicao}</div>}
-                {s.observacao && <div style={{ fontSize: 12, color: '#B0BEC5', marginTop: 2 }}>Obs: {s.observacao}</div>}
+            <div key={s.id} className="card-golbet" style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: '#FF8C00' }}>-R$ {Number(s.valor).toFixed(2)}</div>
+                  <div style={{ fontSize: 12, color: 'var(--texto-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {TIPOS_LABEL[s.tipo_pix]}: {s.chave_pix_cliente}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginTop: 2 }}>{new Date(s.criado_em).toLocaleString('pt-BR')}</div>
+                  {s.motivo_rejeicao && <div style={{ fontSize: 12, color: '#FF4545', marginTop: 4 }}>Motivo: {s.motivo_rejeicao}</div>}
+                  {s.observacao && <div style={{ fontSize: 12, color: 'var(--texto-muted)', marginTop: 2 }}>Obs: {s.observacao}</div>}
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: statusColor[s.status], whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {statusLabel[s.status]}
+                </span>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: statusColor[s.status], whiteSpace: 'nowrap' }}>{statusLabel[s.status]}</span>
             </div>
           ))}
         </div>

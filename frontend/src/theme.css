@@ -69,7 +69,7 @@ body {
   transform: translateY(-1px);
   box-shadow: var(--shadow-amarelo);
 }
-.btn-amarelo:active:not(:disabled) { transform: translateY(0); }
+.btn-amarelo:active:not(:disabled) { transform: scale(0.95); box-shadow: none; }
 .btn-amarelo:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
 
 .btn-verde {
@@ -85,7 +85,7 @@ body {
   font-size: 14px;
 }
 .btn-verde:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
-.btn-verde:active:not(:disabled) { transform: translateY(0); }
+.btn-verde:active:not(:disabled) { transform: scale(0.95); }
 .btn-verde:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-ghost {
@@ -163,6 +163,53 @@ body {
 }
 
 /* ─── Drawer animation ─── */
-@keyframes drawerIn { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes drawerIn { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
 @keyframes fadeIn   { from { opacity: 0 } to { opacity: 1 } }
 @keyframes slideUp  { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: translateY(0) } }
+
+/* ─── Card entrance ─── */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+.card-entrada {
+  animation: cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Odd button hover ─── */
+.odd-btn:not(:disabled):not(.odd-btn-selected):hover {
+  border-color: rgba(0, 194, 100, 0.45) !important;
+  background: linear-gradient(135deg, rgba(0,194,100,0.08) 0%, rgba(0,194,100,0.04) 100%) !important;
+  color: rgba(255,255,255,0.9) !important;
+}
+
+/* ─── Mobile / touch ─── */
+button, a, [role="button"] {
+  touch-action: manipulation;   /* elimina o delay de 300ms no iOS */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Padding seguro para iPhone (safe area inset) */
+.safe-bottom {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+/* Bottom nav espaçador de conteúdo */
+.with-bottom-nav {
+  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+}
+
+/* Scroll suave em listas */
+main, .scroll-y {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ─── Reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

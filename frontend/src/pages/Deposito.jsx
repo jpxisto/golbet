@@ -65,16 +65,33 @@ export default function Deposito() {
           </div>
 
           {valor && parseFloat(valor) >= 10 && (
-            <div style={{ background: '#003D2B', borderRadius: 8, padding: 16 }}>
-              <p style={{ margin: '0 0 10px', fontSize: 13, color: '#B0BEC5' }}>Transfira via Pix para a chave abaixo:</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#004A35', borderRadius: 6, padding: '10px 14px', border: '1px solid #00874F' }}>
-                <span style={{ fontSize: 18 }}>📱</span>
-                <span style={{ flex: 1, fontWeight: 700, fontSize: 16, letterSpacing: 1 }}>{chavePix}</span>
-                <button type="button" onClick={copiarChave} style={{ background: copiado ? '#43A047' : '#F5D020', border: 'none', borderRadius: 6, padding: '6px 12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'Inter, sans-serif', fontSize: 12 }}>
-                  {copiado ? <><Check size={14} /> Copiado!</> : <><Copy size={14} /> Copiar</>}
+            <div style={{ background: 'rgba(0,61,43,0.6)', borderRadius: 10, padding: 16, border: '1px solid rgba(0,194,100,0.2)' }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--texto-sec)' }}>Transfira via Pix para a chave abaixo:</p>
+              {/* Chave Pix — empilhada no mobile */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(0,74,53,0.7)', borderRadius: 8, padding: '12px 14px', border: '1px solid rgba(0,194,100,0.25)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>📱</span>
+                  <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: 0.5, wordBreak: 'break-all', flex: 1 }}>
+                    {chavePix}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={copiarChave}
+                  style={{
+                    background: copiado ? '#00C264' : '#FFD000',
+                    border: 'none', borderRadius: 7,
+                    padding: '9px 0', fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: 6, fontFamily: 'Inter, sans-serif', fontSize: 13,
+                    color: '#000', width: '100%',
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  {copiado ? <><Check size={15} /> Chave copiada!</> : <><Copy size={15} /> Copiar chave Pix</>}
                 </button>
               </div>
-              <p style={{ margin: '10px 0 0', fontSize: 13, color: '#F5D020', fontWeight: 600 }}>
+              <p style={{ margin: '10px 0 0', fontSize: 14, color: '#FFD000', fontWeight: 700, textAlign: 'center' }}>
                 Valor exato: R$ {parseFloat(valor).toFixed(2)}
               </p>
             </div>
@@ -94,15 +111,21 @@ export default function Deposito() {
       {/* Histórico */}
       {meusDeps.length > 0 && (
         <div>
-          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Meus depósitos</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: 'var(--texto-sec)' }}>Meus depósitos</h3>
           {meusDeps.map(d => (
-            <div key={d.id} className="card-golbet" style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontWeight: 700 }}>R$ {Number(d.valor).toFixed(2)}</div>
-                <div style={{ fontSize: 12, color: '#B0BEC5' }}>{new Date(d.criado_em).toLocaleString('pt-BR')}</div>
-                {d.motivo_rejeicao && <div style={{ fontSize: 12, color: '#E53935', marginTop: 2 }}>Motivo: {d.motivo_rejeicao}</div>}
+            <div key={d.id} className="card-golbet" style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: '#00C264' }}>+R$ {Number(d.valor).toFixed(2)}</div>
+                  <div style={{ fontSize: 12, color: 'var(--texto-muted)', marginTop: 2 }}>{new Date(d.criado_em).toLocaleString('pt-BR')}</div>
+                  {d.motivo_rejeicao && (
+                    <div style={{ fontSize: 12, color: '#FF4545', marginTop: 4 }}>Motivo: {d.motivo_rejeicao}</div>
+                  )}
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: statusColor[d.status], whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {statusLabel[d.status]}
+                </span>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: statusColor[d.status] }}>{statusLabel[d.status]}</span>
             </div>
           ))}
         </div>

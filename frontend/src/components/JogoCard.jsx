@@ -61,12 +61,12 @@ function ArtilheiroDrawer({ jogo, mercadoArt, opcaoSelecionada, valorInicial, on
       }} />
       <div style={{
         position: 'fixed', right: 0, top: 0, bottom: 0,
-        width: 360, maxWidth: '95vw',
+        width: 380, maxWidth: '96vw',
         background: 'linear-gradient(180deg, #002318 0%, #001612 100%)',
-        borderLeft: '1px solid rgba(0,194,100,0.2)',
+        borderLeft: '1px solid rgba(0,194,100,0.22)',
         zIndex: 201, display: 'flex', flexDirection: 'column',
-        boxShadow: '-12px 0 60px rgba(0,0,0,0.7)',
-        animation: 'drawerIn 0.25s cubic-bezier(0.4,0,0.2,1)',
+        boxShadow: '-16px 0 64px rgba(0,0,0,0.75)',
+        animation: 'drawerIn 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
       }}>
         {/* Header */}
         <div style={{
@@ -234,10 +234,12 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
         background: 'linear-gradient(160deg, var(--bg-card) 0%, var(--bg-deep) 100%)',
         borderRadius: 14,
         border: `1px solid ${aberto ? 'rgba(0,194,100,0.3)' : 'rgba(0,194,100,0.1)'}`,
-        marginBottom: 12,
+        marginBottom: 14,
         overflow: 'hidden',
-        boxShadow: aberto ? '0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,194,100,0.1)' : '0 4px 16px rgba(0,0,0,0.3)',
-        transition: 'box-shadow 0.2s',
+        boxShadow: aberto
+          ? '0 6px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,194,100,0.1)'
+          : '0 4px 16px rgba(0,0,0,0.3)',
+        transition: 'box-shadow 0.25s',
       }}>
         {/* Top bar */}
         <div style={{
@@ -258,27 +260,27 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
         </div>
 
         {/* Main content */}
-        <div style={{ padding: '14px 14px 10px' }}>
+        <div style={{ padding: '16px 14px 12px' }}>
 
           {/* Teams row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
             {/* Team A */}
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 30, lineHeight: 1, marginBottom: 5 }}>{jogo.flag_a}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>{jogo.time_a}</div>
+              <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 6 }}>{jogo.flag_a}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', lineHeight: 1.2, letterSpacing: '-0.2px' }}>{jogo.time_a}</div>
             </div>
 
             {/* VS */}
-            <div style={{ textAlign: 'center', padding: '0 8px', flexShrink: 0 }}>
+            <div style={{ textAlign: 'center', padding: '0 6px', flexShrink: 0 }}>
               <div style={{
-                fontSize: 11, fontWeight: 800, color: 'var(--texto-muted)',
-                letterSpacing: '1px', background: 'rgba(0,0,0,0.25)',
-                borderRadius: 6, padding: '4px 8px', border: '1px solid rgba(255,255,255,0.06)',
+                fontSize: 12, fontWeight: 900, color: 'var(--texto-sec)',
+                letterSpacing: '1.5px', background: 'rgba(0,0,0,0.3)',
+                borderRadius: 7, padding: '5px 10px', border: '1px solid rgba(255,255,255,0.08)',
               }}>
                 VS
               </div>
               {jogo.data_hora && (
-                <div style={{ fontSize: 10, color: 'var(--texto-muted)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'center' }}>
+                <div style={{ fontSize: 10, color: 'var(--texto-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'center' }}>
                   <Clock size={9} />
                   {dataFormatada()}
                 </div>
@@ -287,8 +289,8 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
 
             {/* Team B */}
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 30, lineHeight: 1, marginBottom: 5 }}>{jogo.flag_b}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>{jogo.time_b}</div>
+              <div style={{ fontSize: 36, lineHeight: 1, marginBottom: 6 }}>{jogo.flag_b}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', lineHeight: 1.2, letterSpacing: '-0.2px' }}>{jogo.time_b}</div>
             </div>
           </div>
 
@@ -352,10 +354,19 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
             const labelResultado = art.resultado === 'A' ? labelA : art.resultado === 'B' ? labelB : '🤝 Empate';
 
             return (
-              <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(0,194,100,0.12)', background: 'rgba(0,0,0,0.18)' }}>
-                <div style={{ fontSize: 10, color: 'var(--texto-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 8, textAlign: 'center' }}>
-                  ⚽ Artilheiro — quem marca mais?
+              <div style={{ marginBottom: 10, borderRadius: 10, border: '1px solid rgba(0,194,100,0.15)', background: 'rgba(0,0,0,0.22)', overflow: 'hidden' }}>
+                <div style={{
+                  padding: '7px 12px',
+                  borderBottom: '1px solid rgba(0,194,100,0.1)',
+                  background: 'rgba(0,0,0,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}>
+                  <span style={{ fontSize: 12 }}>⚽</span>
+                  <span style={{ fontSize: 10, color: 'var(--texto-sec)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    Artilheiro — quem marca mais?
+                  </span>
                 </div>
+                <div style={{ padding: '10px 12px' }}>
                 <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
                   {opcoes.map(({ key, label }) => {
                     const artAberto = art.status === 'aberto';
@@ -385,7 +396,7 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
                     );
                   })}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                   {artilheiro.minhaAposta ? (
                     <span style={{ fontSize: 10, color: 'rgba(255,208,0,0.8)' }}>
                       Sua aposta: <strong>{labelAposta}</strong>
@@ -399,9 +410,10 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
                     </span>
                   )}
                   <span style={{ fontSize: 10, color: 'var(--texto-muted)' }}>
-                    Pote: <span style={{ color: '#FFD000', fontWeight: 600 }}>R$ {Number(art.pote_total || 0).toFixed(2)}</span>
+                    Pote: <span style={{ color: '#FFD000', fontWeight: 700 }}>R$ {Number(art.pote_total || 0).toFixed(2)}</span>
                   </span>
                 </div>
+                </div>{/* end padding div */}
               </div>
             );
           })()}
@@ -409,14 +421,17 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
           {/* Footer */}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            paddingTop: 8, borderTop: '1px solid rgba(0,194,100,0.08)',
+            paddingTop: 10, borderTop: '1px solid rgba(0,194,100,0.08)',
           }}>
             <span style={{ fontSize: 11, color: 'var(--texto-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
               <Users size={11} />
               {jogo.num_apostadores || 0} apostadores
             </span>
-            <span style={{ fontSize: 11, color: 'var(--texto-sec)', fontWeight: 600 }}>
-              Pote: <span style={{ color: '#FFD000', fontWeight: 700 }}>R$ {Number(jogo.pote_total || 0).toFixed(2)}</span>
+            <span style={{ fontSize: 12, color: 'var(--texto-sec)', fontWeight: 600, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+              Pote:
+              <span style={{ color: '#FFD000', fontWeight: 800, fontSize: 14, letterSpacing: '-0.3px' }}>
+                R$ {Number(jogo.pote_total || 0).toFixed(2)}
+              </span>
             </span>
           </div>
 

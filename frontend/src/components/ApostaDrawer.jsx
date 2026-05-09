@@ -47,12 +47,12 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
 
       <div style={{
         position: 'fixed', right: 0, top: 0, bottom: 0,
-        width: 360, maxWidth: '95vw',
+        width: 380, maxWidth: '96vw',
         background: 'linear-gradient(180deg, #002318 0%, #001612 100%)',
-        borderLeft: '1px solid rgba(0,194,100,0.2)',
+        borderLeft: '1px solid rgba(0,194,100,0.22)',
         zIndex: 201, display: 'flex', flexDirection: 'column',
-        boxShadow: '-12px 0 60px rgba(0,0,0,0.7)',
-        animation: 'drawerIn 0.25s cubic-bezier(0.4,0,0.2,1)',
+        boxShadow: '-16px 0 64px rgba(0,0,0,0.75)',
+        animation: 'drawerIn 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
       }}>
 
         {/* Header */}
@@ -90,11 +90,13 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
 
           {/* Palpite escolhido */}
           <div style={{
-            background: 'linear-gradient(135deg, rgba(255,208,0,0.12) 0%, rgba(255,208,0,0.06) 100%)',
-            border: '2px solid rgba(255,208,0,0.4)', borderRadius: 10, padding: '14px 16px', textAlign: 'center',
+            background: 'linear-gradient(135deg, rgba(255,208,0,0.14) 0%, rgba(255,208,0,0.06) 100%)',
+            border: '2px solid rgba(255,208,0,0.45)',
+            borderRadius: 12, padding: '16px 16px', textAlign: 'center',
+            boxShadow: '0 4px 20px rgba(255,208,0,0.12)',
           }}>
-            <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Seu Palpite</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: '#FFD000', letterSpacing: '-0.5px' }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,208,0,0.6)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Seu Palpite</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#FFD000', letterSpacing: '-0.5px', lineHeight: 1.15 }}>
               {flagResultado} {nomeResultado}
             </div>
           </div>

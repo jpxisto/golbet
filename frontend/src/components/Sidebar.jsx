@@ -32,7 +32,7 @@ export default function Sidebar({ open, onClose, isMobile }) {
         bottom: 0,
         zIndex: 99,
         transform: isVisible ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 0.22s cubic-bezier(0.4,0,0.2,1)',
+        transition: 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
         boxShadow: isMobile && open ? '6px 0 32px rgba(0,0,0,0.5)' : 'none',
       }}>
         {isMobile && open && (
@@ -62,7 +62,7 @@ export default function Sidebar({ open, onClose, isMobile }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                padding: '11px 16px',
+                padding: '13px 16px',
                 color: isActive ? '#FFD000' : 'rgba(255,255,255,0.65)',
                 textDecoration: 'none',
                 fontWeight: isActive ? 700 : 500,

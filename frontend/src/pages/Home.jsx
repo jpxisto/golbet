@@ -4,6 +4,16 @@ import JogoCard from '../components/JogoCard';
 import { useAuth } from '../context/AuthContext';
 import { Trophy, Zap, Lock } from 'lucide-react';
 
+function useIsMobile() {
+  const [m, setM] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 640);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return m;
+}
+
 const FILTROS = [
   { label: 'Todos', val: null },
   { label: '🟢 Abertos', val: 'aberto' },
@@ -14,6 +24,7 @@ const FILTROS = [
 
 export default function Home() {
   const { usuario } = useAuth();
+  const isMobile = useIsMobile();
   const [jogos, setJogos] = useState([]);
   const [minhasApostas, setMinhasApostas] = useState([]);
   const [filtro, setFiltro] = useState(null);
@@ -59,20 +70,21 @@ export default function Home() {
       <div style={{
         background: 'linear-gradient(135deg, #002B1C 0%, #001F14 100%)',
         borderRadius: 14, border: '1px solid rgba(0,194,100,0.15)',
-        padding: '18px 20px', marginBottom: 20,
+        padding: isMobile ? '14px 16px' : '18px 20px', marginBottom: 18,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
         position: 'relative', overflow: 'hidden',
+        gap: 12,
       }}>
         <div style={{ position: 'absolute', right: -20, top: -20, width: 140, height: 140, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,208,0,0.07) 0%, transparent 70%)' }} />
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <Trophy size={18} style={{ color: '#FFD000' }} />
-            <h1 style={{ margin: 0, fontSize: 17, fontWeight: 800, letterSpacing: '-0.3px' }}>
+            <Trophy size={isMobile ? 17 : 20} style={{ color: '#FFD000', flexShrink: 0 }} />
+            <h1 style={{ margin: 0, fontSize: isMobile ? 16 : 20, fontWeight: 900, letterSpacing: '-0.4px', lineHeight: 1.2, whiteSpace: isMobile ? 'normal' : 'nowrap' }}>
               Copa do Mundo Rolemberg
             </h1>
           </div>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--texto-muted)' }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--texto-muted)', paddingLeft: isMobile ? 0 : 25 }}>
             {jogos.length} jogos no total
           </p>
         </div>
@@ -109,15 +121,19 @@ export default function Home() {
       )}
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
         {FILTROS.map(f => (
           <button key={f.label} onClick={() => setFiltro(f.val)} style={{
-            padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+            padding: '7px 16px', borderRadius: 20, fontSize: 12,
+            fontWeight: filtro === f.val ? 800 : 600,
+            cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
             background: filtro === f.val ? '#FFD000' : 'rgba(0,0,0,0.3)',
             color: filtro === f.val ? '#000' : 'rgba(255,255,255,0.55)',
-            border: filtro === f.val ? 'none' : '1px solid rgba(0,194,100,0.15)',
-            boxShadow: filtro === f.val ? '0 2px 10px rgba(255,208,0,0.25)' : 'none',
+            border: filtro === f.val ? '1.5px solid #FFD000' : '1px solid rgba(0,194,100,0.15)',
+            boxShadow: filtro === f.val ? '0 2px 14px rgba(255,208,0,0.35)' : 'none',
+            transform: filtro === f.val ? 'translateY(-1px)' : 'none',
+            letterSpacing: filtro === f.val ? '-0.2px' : '0',
           }}>
             {f.label}
           </button>
@@ -136,8 +152,10 @@ export default function Home() {
           <p style={{ margin: 0, fontSize: 14 }}>Nenhum jogo nesta categoria</p>
         </div>
       ) : (
-        jogosFiltrados.map(jogo => (
-          <JogoCard key={jogo.id} jogo={jogo} minhaAposta={apostaMap[jogo.id]} />
+        jogosFiltrados.map((jogo, i) => (
+          <div key={jogo.id} className="card-entrada" style={{ animationDelay: `${Math.min(i, 8) * 55}ms` }}>
+            <JogoCard jogo={jogo} minhaAposta={apostaMap[jogo.id]} />
+          </div>
         ))
       )}
     </div>

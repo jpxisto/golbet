@@ -24,7 +24,7 @@ function GolbetLogo({ fontSize = 22 }) {
   );
 }
 
-export default function Header({ sidebarOpen, setSidebarOpen }) {
+export default function Header({ sidebarOpen, setSidebarOpen, isMobile }) {
   const { usuario, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -73,27 +73,29 @@ export default function Header({ sidebarOpen, setSidebarOpen }) {
 
       {/* Right */}
       {usuario && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8 }}>
           {/* Saldo */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
             background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,194,100,0.2)',
-            borderRadius: 8, padding: '5px 10px',
+            borderRadius: 8, padding: isMobile ? '5px 8px' : '5px 10px',
           }}>
             <Wallet size={13} style={{ color: '#FFD000' }} />
             <SaldoDisplay />
           </div>
 
-          {/* Nome */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            background: 'rgba(255,208,0,0.1)', border: '1px solid rgba(255,208,0,0.2)',
-            borderRadius: 8, padding: '5px 10px',
-            fontSize: 13, fontWeight: 700, color: '#FFD000',
-            maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {usuario.nome.split(' ')[0]}
-          </div>
+          {/* Nome — oculto em mobile para economizar espaço */}
+          {!isMobile && (
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              background: 'rgba(255,208,0,0.1)', border: '1px solid rgba(255,208,0,0.2)',
+              borderRadius: 8, padding: '5px 10px',
+              fontSize: 13, fontWeight: 700, color: '#FFD000',
+              maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {usuario.nome.split(' ')[0]}
+            </div>
+          )}
 
           {/* Logout */}
           <button

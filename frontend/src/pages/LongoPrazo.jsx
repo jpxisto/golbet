@@ -3,6 +3,16 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Trophy, Lock, Clock, Users, Zap, ChevronDown, ChevronUp, X } from 'lucide-react';
 
+function useIsMobile() {
+  const [m, setM] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 640);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return m;
+}
+
 // ── Componente de cada Mercado ─────────────────────────────────────────────────
 function MercadoCard({ mercado, minhasApostas, onApostar }) {
   // minhasApostas: { [opcao]: aposta } — pode ser objeto vazio
@@ -48,16 +58,16 @@ function MercadoCard({ mercado, minhasApostas, onApostar }) {
 
       {/* Título e informações */}
       <div style={{ padding: '14px 14px 0' }}>
-        <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 800, letterSpacing: '-0.2px', lineHeight: 1.3 }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 900, letterSpacing: '-0.3px', lineHeight: 1.3 }}>
           {mercado.titulo}
         </h3>
-        <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--texto-muted)', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--texto-muted)', marginBottom: 12, alignItems: 'center' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <Users size={10} /> {mercado.num_apostadores || 0} apostas
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <Trophy size={10} style={{ color: '#FFD000' }} />
-            Pote: <strong style={{ color: '#FFD000', marginLeft: 2 }}>R$ {Number(mercado.pote_total || 0).toFixed(2)}</strong>
+            Pote: <strong style={{ color: '#FFD000', marginLeft: 2, fontSize: 12, fontWeight: 800 }}>R$ {Number(mercado.pote_total || 0).toFixed(2)}</strong>
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <Clock size={10} />
@@ -242,12 +252,12 @@ function ApostaLongoPrazoDrawer({ mercado, opcaoSelecionada, valorInicial, onClo
       {/* Drawer */}
       <div style={{
         position: 'fixed', right: 0, top: 0, bottom: 0,
-        width: 360, maxWidth: '95vw',
+        width: 380, maxWidth: '96vw',
         background: 'linear-gradient(180deg, #002318 0%, #001612 100%)',
-        borderLeft: '1px solid rgba(0,194,100,0.2)',
+        borderLeft: '1px solid rgba(0,194,100,0.22)',
         zIndex: 201, display: 'flex', flexDirection: 'column',
-        boxShadow: '-12px 0 60px rgba(0,0,0,0.7)',
-        animation: 'drawerIn 0.25s cubic-bezier(0.4,0,0.2,1)',
+        boxShadow: '-16px 0 64px rgba(0,0,0,0.75)',
+        animation: 'drawerIn 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
       }}>
         {/* Header */}
         <div style={{
@@ -385,6 +395,7 @@ function ApostaLongoPrazoDrawer({ mercado, opcaoSelecionada, valorInicial, onClo
 // ── Página principal ───────────────────────────────────────────────────────────
 export default function LongoPrazo() {
   const { usuario } = useAuth();
+  const isMobile = useIsMobile();
   const [mercados, setMercados] = useState([]);
   const [minhasApostas, setMinhasApostas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -438,20 +449,21 @@ export default function LongoPrazo() {
       <div style={{
         background: 'linear-gradient(135deg, #002B1C 0%, #001F14 100%)',
         borderRadius: 14, border: '1px solid rgba(0,194,100,0.15)',
-        padding: '18px 20px', marginBottom: 20,
+        padding: isMobile ? '14px 16px' : '18px 20px', marginBottom: 18,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
         position: 'relative', overflow: 'hidden',
+        gap: 12,
       }}>
         <div style={{ position: 'absolute', right: -20, top: -20, width: 140, height: 140, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,208,0,0.07) 0%, transparent 70%)' }} />
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <Trophy size={18} style={{ color: '#FFD000' }} />
-            <h1 style={{ margin: 0, fontSize: 17, fontWeight: 800, letterSpacing: '-0.3px' }}>
+            <Trophy size={isMobile ? 17 : 20} style={{ color: '#FFD000', flexShrink: 0 }} />
+            <h1 style={{ margin: 0, fontSize: isMobile ? 16 : 20, fontWeight: 900, letterSpacing: '-0.4px', lineHeight: 1.2 }}>
               Apostas de Longo Prazo
             </h1>
           </div>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--texto-muted)' }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--texto-muted)', paddingLeft: isMobile ? 0 : 25 }}>
             Aposte em mais de uma opção por mercado
           </p>
         </div>
@@ -500,13 +512,14 @@ export default function LongoPrazo() {
           <p style={{ margin: '6px 0 0', fontSize: 12, opacity: 0.6 }}>O admin criará os mercados em breve</p>
         </div>
       ) : (
-        mercados.map(mercado => (
-          <MercadoCard
-            key={mercado.id}
-            mercado={mercado}
-            minhasApostas={apostaMap[mercado.id] || {}}
-            onApostar={(m, opcao, valorExistente) => setDrawer({ mercado: m, opcao, valorInicial: valorExistente })}
-          />
+        mercados.map((mercado, i) => (
+          <div key={mercado.id} className="card-entrada" style={{ animationDelay: `${Math.min(i, 6) * 60}ms` }}>
+            <MercadoCard
+              mercado={mercado}
+              minhasApostas={apostaMap[mercado.id] || {}}
+              onApostar={(m, opcao, valorExistente) => setDrawer({ mercado: m, opcao, valorInicial: valorExistente })}
+            />
+          </div>
         ))
       )}
     </div>
