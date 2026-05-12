@@ -7,6 +7,7 @@ const { initDB } = require('./database');
 const { ensureSheets } = require('./sheets');
 
 const app = express();
+app.set('trust proxy', 1); // Render usa proxy reverso
 app.use(cors());
 app.use(express.json());
 

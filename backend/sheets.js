@@ -8,8 +8,12 @@ const { google } = require('googleapis');
 const SPREADSHEET_ID  = process.env.GOOGLE_SPREADSHEET_ID;
 const CLIENT_EMAIL    = process.env.GOOGLE_CLIENT_EMAIL;
 const PRIVATE_KEY_RAW = process.env.GOOGLE_PRIVATE_KEY || '';
-// Render armazena \n como literal — converte para quebra de linha real
-const PRIVATE_KEY     = PRIVATE_KEY_RAW.replace(/\\n/g, '\n');
+// Render pode armazenar \n como literal ou como quebra real; normaliza ambos
+const PRIVATE_KEY = PRIVATE_KEY_RAW
+  .replace(/\\n/g, '\n')   // literal \n → quebra real
+  .replace(/\r\n/g, '\n')  // CRLF → LF
+  .replace(/\r/g, '\n')    // CR solto → LF
+  .trim();
 
 let _sheets = null;
 
