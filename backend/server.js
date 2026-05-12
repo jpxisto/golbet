@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const { initDB } = require('./database');
+const { ensureSheets } = require('./sheets');
 
 const app = express();
 app.use(cors());
@@ -71,5 +72,8 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 3001;
 
 initDB()
-  .then(() => app.listen(PORT, () => console.log(`GolBet backend rodando na porta ${PORT}`)))
+  .then(() => {
+    ensureSheets(); // fire-and-forget — cria abas na planilha se não existirem
+    app.listen(PORT, () => console.log(`GolBet backend rodando na porta ${PORT}`));
+  })
   .catch(err => { console.error('Erro ao iniciar DB:', err); process.exit(1); });

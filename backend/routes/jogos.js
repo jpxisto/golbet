@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { run, get, all, transaction } = require('../database');
+const sheets = require('../sheets');
 
 // Calcula odds de UM jogo (usado no endpoint /:id)
 async function calcOdds(jogoId) {
@@ -136,6 +137,14 @@ router.post('/:id/apostar', async (req, res) => {
     await transaction(ops);
 
     const novoSaldo = await get('SELECT saldo FROM apostadores WHERE id = ?', [apostador_id]);
+    // Sync Sheets — fire-and-forget
+    const jogoInfo = await get('SELECT * FROM jogos WHERE id = ?', [jogoId]);
+    const apInfo   = await get('SELECT nome FROM apostadores WHERE id = ?', [apostador_id]);
+    const apostaInfo = await get('SELECT * FROM apostas WHERE apostador_id = ? AND jogo_id = ?', [apostador_id, jogoId]);
+    if (jogoInfo && apInfo && apostaInfo) {
+      const jogoDesc = `${jogoInfo.flag_a} ${jogoInfo.time_a} vs ${jogoInfo.time_b} ${jogoInfo.flag_b}`;
+      sheets.syncAposta(apostaInfo, apInfo.nome, jogoDesc);
+    }
     res.json({ sucesso: true, saldo: novoSaldo.saldo });
   } catch (e) {
     res.status(500).json({ erro: 'Erro ao registrar aposta: ' + e.message });

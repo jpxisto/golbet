@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { run, get, all, transaction } = require('../database');
+const sheets = require('../sheets');
 
 function authAdmin(req, res, next) {
   const senha = req.headers['x-admin-senha'];
@@ -45,6 +46,11 @@ router.patch('/depositos/:id/aprovar', authAdmin, async (req, res) => {
     { sql: `UPDATE depositos SET status = 'aprovado', aprovado_em = CURRENT_TIMESTAMP WHERE id = ?`, params: [dep.id] },
     { sql: 'UPDATE apostadores SET saldo = saldo + ?, total_depositado = total_depositado + ? WHERE id = ?', params: [dep.valor, dep.valor, dep.apostador_id] },
   ]);
+  // Sync Sheets
+  const ap = await get('SELECT * FROM apostadores WHERE id = ?', [dep.apostador_id]);
+  sheets.syncDeposito({ ...dep, status: 'aprovado' }, ap?.nome || '');
+  sheets.syncApostador(ap);
+  sheets.logAdmin('Depósito aprovado', ap?.nome, `R$ ${Number(dep.valor).toFixed(2)}`);
   res.json({ sucesso: true });
 });
 
@@ -55,6 +61,10 @@ router.patch('/depositos/:id/rejeitar', authAdmin, async (req, res) => {
   if (!dep) return res.status(404).json({ erro: 'Não encontrado' });
   if (dep.status !== 'pendente') return res.status(400).json({ erro: 'Não está pendente' });
   await run(`UPDATE depositos SET status = 'rejeitado', motivo_rejeicao = ? WHERE id = ?`, [motivo, dep.id]);
+  // Sync Sheets
+  const ap = await get('SELECT nome FROM apostadores WHERE id = ?', [dep.apostador_id]);
+  sheets.syncDeposito({ ...dep, status: 'rejeitado', motivo_rejeicao: motivo }, ap?.nome || '');
+  sheets.logAdmin('Depósito rejeitado', `${ap?.nome} — ${motivo}`, `R$ ${Number(dep.valor).toFixed(2)}`);
   res.json({ sucesso: true });
 });
 
@@ -77,6 +87,11 @@ router.patch('/saques/:id/pagar', authAdmin, async (req, res) => {
     { sql: `UPDATE saques SET status = 'pago', pago_em = CURRENT_TIMESTAMP, observacao = ? WHERE id = ?`, params: [observacao || null, saque.id] },
     { sql: 'UPDATE apostadores SET total_sacado = total_sacado + ? WHERE id = ?', params: [saque.valor, saque.apostador_id] },
   ]);
+  // Sync Sheets
+  const ap = await get('SELECT * FROM apostadores WHERE id = ?', [saque.apostador_id]);
+  sheets.syncSaque({ ...saque, status: 'pago' }, ap?.nome || '');
+  sheets.syncApostador(ap);
+  sheets.logAdmin('Saque pago', `${ap?.nome} — Pix: ${saque.chave_pix_cliente}`, `R$ ${Number(saque.valor).toFixed(2)}`);
   res.json({ sucesso: true });
 });
 
@@ -90,6 +105,11 @@ router.patch('/saques/:id/rejeitar', authAdmin, async (req, res) => {
     { sql: `UPDATE saques SET status = 'rejeitado', motivo_rejeicao = ? WHERE id = ?`, params: [motivo, saque.id] },
     { sql: 'UPDATE apostadores SET saldo = saldo + ? WHERE id = ?', params: [saque.valor, saque.apostador_id] },
   ]);
+  // Sync Sheets
+  const ap = await get('SELECT * FROM apostadores WHERE id = ?', [saque.apostador_id]);
+  sheets.syncSaque({ ...saque, status: 'rejeitado', motivo_rejeicao: motivo }, ap?.nome || '');
+  sheets.syncApostador(ap);
+  sheets.logAdmin('Saque rejeitado', `${ap?.nome} — ${motivo}`, `R$ ${Number(saque.valor).toFixed(2)}`);
   res.json({ sucesso: true });
 });
 
@@ -205,6 +225,19 @@ router.patch('/jogos/:id/finalizar', authAdmin, async (req, res) => {
   }
 
   await transaction(ops);
+
+  // Sync Sheets — lucro + todas as apostas com resultado final
+  const jogoDesc = `${jogo.flag_a} ${jogo.time_a} vs ${jogo.time_b} ${jogo.flag_b}`;
+  sheets.syncLucroCasa(jogoId, jogoDesc, taxaCasa);
+  sheets.logAdmin('Jogo finalizado', `${jogoDesc} — resultado: ${resultado}`, `Pote: R$ ${poteTotal.toFixed(2)}`);
+  for (const aposta of apostas) {
+    const ap = await get('SELECT nome FROM apostadores WHERE id = ?', [aposta.apostador_id]);
+    const status = aposta.resultado === resultado ? 'ganhou' : 'perdeu';
+    const premio = vencedoras.find(v => v.id === aposta.id)
+      ? (aposta.valor / (totalVencedor || 1)) * potePremios : 0;
+    sheets.syncAposta({ ...aposta, status, premio }, ap?.nome || '', jogoDesc);
+  }
+
   res.json({ sucesso: true });
 });
 
@@ -239,6 +272,7 @@ router.patch('/apostadores/:id/resetar-senha', authAdmin, async (req, res) => {
 
   const hash = await bcrypt.hash(nova_senha, 10);
   await run('UPDATE apostadores SET senha = ? WHERE id = ?', [hash, req.params.id]);
+  sheets.logAdmin('Senha redefinida', apostador.nome, '—');
   res.json({ sucesso: true, nome: apostador.nome });
 });
 
@@ -258,6 +292,9 @@ router.patch('/apostadores/:id/ajustar-saldo', authAdmin, async (req, res) => {
   if (novoSaldo < 0) return res.status(400).json({ erro: 'Saldo ficaria negativo' });
 
   await run('UPDATE apostadores SET saldo = ? WHERE id = ?', [novoSaldo, req.params.id]);
+  const apAtualizado = await get('SELECT * FROM apostadores WHERE id = ?', [req.params.id]);
+  sheets.syncApostador(apAtualizado);
+  sheets.logAdmin('Saldo ajustado', `${apostador.nome} — ${motivo}`, `${num >= 0 ? '+' : ''}R$ ${num.toFixed(2)} → novo saldo: R$ ${novoSaldo.toFixed(2)}`);
   res.json({ sucesso: true, nome: apostador.nome, saldo_anterior: apostador.saldo, novo_saldo: novoSaldo });
 });
 

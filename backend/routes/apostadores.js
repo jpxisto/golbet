@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { run, get, all } = require('../database');
+const sheets = require('../sheets');
 
 // ─── Cadastro ────────────────────────────────────────────────────────────────
 router.post('/cadastro', async (req, res) => {
@@ -18,9 +19,11 @@ router.post('/cadastro', async (req, res) => {
       [nome.trim(), telefone.trim(), hash]
     );
     const apostador = await get(
-      'SELECT id, nome, telefone, saldo FROM apostadores WHERE id = ?',
+      'SELECT id, nome, telefone, saldo, total_depositado, total_apostado, total_ganho, total_sacado FROM apostadores WHERE id = ?',
       [result.lastID]
     );
+    sheets.syncApostador(apostador);
+    sheets.logAdmin('Novo cadastro', apostador.nome, '—');
     res.json(apostador);
   } catch (e) {
     if (e.message.includes('UNIQUE'))
