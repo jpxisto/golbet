@@ -1051,7 +1051,7 @@ function GestaoLongoPrazo() {
                 className="input-golbet"
                 value={novoForm.titulo}
                 onChange={e => setNovoForm({ ...novoForm, titulo: e.target.value })}
-                placeholder="Ex: Quem será o campeão da Copa Rolemberg?"
+                placeholder="Ex: Quem será o campeão da GolBet?"
                 required
               />
             </div>

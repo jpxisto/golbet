@@ -20,7 +20,7 @@ function GolbetLogoFull() {
         </div>
       </div>
       <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,208,0,0.6)', letterSpacing: '2.5px', textTransform: 'uppercase' }}>
-        Copa do Mundo Rolemberg
+        GolBet
       </div>
     </div>
   );

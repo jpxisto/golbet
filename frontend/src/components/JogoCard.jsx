@@ -252,7 +252,7 @@ export default function JogoCard({ jogo: jogoInicial, minhaAposta }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--texto-muted)', fontWeight: 500 }}>
             <span style={{ color: '#FFD000', fontSize: 12 }}>🏆</span>
-            Copa do Mundo Rolemberg
+            GolBet
           </div>
           <span className={`badge ${st.cls}`} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {st.icon} {st.label}

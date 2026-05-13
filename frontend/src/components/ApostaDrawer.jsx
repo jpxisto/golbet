@@ -63,7 +63,7 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
         }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: 16 }}>{modoEdicao ? 'Editar Aposta' : 'Fazer Aposta'}</div>
-            <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginTop: 2 }}>Copa do Mundo Rolemberg</div>
+            <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginTop: 2 }}>GolBet</div>
           </div>
           <button onClick={onClose} style={{
             background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',

@@ -105,8 +105,7 @@ export default function Sidebar({ open, onClose, isMobile }) {
         {/* Footer brand */}
         <div style={{ padding: '10px 16px 16px', borderTop: '1px solid rgba(0,194,100,0.08)' }}>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontWeight: 500 }}>
-            Copa do Mundo<br/>
-            <span style={{ color: 'rgba(255,208,0,0.3)' }}>Rolemberg</span>
+            GolBet
           </div>
         </div>
       </aside>

@@ -81,7 +81,7 @@ export default function Home() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <Trophy size={isMobile ? 17 : 20} style={{ color: '#FFD000', flexShrink: 0 }} />
             <h1 style={{ margin: 0, fontSize: isMobile ? 16 : 20, fontWeight: 900, letterSpacing: '-0.4px', lineHeight: 1.2, whiteSpace: isMobile ? 'normal' : 'nowrap' }}>
-              Copa do Mundo Rolemberg
+              GolBet
             </h1>
           </div>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--texto-muted)', paddingLeft: isMobile ? 0 : 25 }}>

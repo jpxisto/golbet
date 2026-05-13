@@ -67,7 +67,7 @@ export default function Header({ sidebarOpen, setSidebarOpen, isMobile }) {
           lineHeight: 1.2,
           '@media(min-width:500px)': { display: 'block' }
         }}>
-          Copa do Mundo<br/>Rolemberg
+          Apostas & Palpites
         </span>
       </div>
 
