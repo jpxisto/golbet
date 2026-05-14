@@ -205,6 +205,39 @@ main, .scroll-y {
   scroll-behavior: smooth;
 }
 
+/* ─── Spinner (evita <style> inline em render) ─── */
+@keyframes spin { to { transform: rotate(360deg) } }
+.spinner {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid rgba(0,194,100,0.18);
+  border-top-color: var(--verde-accent);
+  animation: spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ─── Focus ring global acessível ─── */
+:focus-visible {
+  outline: 2px solid var(--amarelo);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Sidebar nav pill (sem side-stripe) ─── */
+.nav-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; margin: 2px 8px;
+  border-radius: var(--radius-md);
+  transition: background 0.15s, color 0.15s;
+  text-decoration: none;
+  font-size: 13.5px; font-weight: 500;
+  color: rgba(255,255,255,0.65);
+}
+.nav-pill:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.9); }
+.nav-pill.active { background: rgba(255,208,0,0.1); color: var(--amarelo); font-weight: 700; }
+
 /* ─── Reduced motion ─── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

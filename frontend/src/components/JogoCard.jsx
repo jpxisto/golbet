@@ -79,10 +79,11 @@ function ArtilheiroDrawer({ jogo, mercadoArt, opcaoSelecionada, valorInicial, on
               {jogo.flag_a} {jogo.time_a} vs {jogo.time_b} {jogo.flag_b}
             </div>
           </div>
-          <button onClick={onClose} style={{
+          <button onClick={onClose} aria-label="Fechar" style={{
             background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
             color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex',
-            borderRadius: 8, padding: 7,
+            alignItems: 'center', justifyContent: 'center',
+            borderRadius: 8, minWidth: 44, minHeight: 44,
           }}>
             <X size={18} />
           </button>
@@ -311,7 +312,7 @@ function ExtrasDrawer({ jogo, mercado, opcaoSelecionada, onClose, onSucesso }) {
             <div style={{ fontWeight: 800, fontSize: 16 }}>{TIPO_LABELS[mercado.tipo]}</div>
             <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginTop: 2 }}>{jogo.flag_a} {jogo.time_a} vs {jogo.time_b} {jogo.flag_b}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', borderRadius: 8, padding: 7 }}><X size={18} /></button>
+          <button onClick={onClose} aria-label="Fechar" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, minWidth: 44, minHeight: 44 }}><X size={18} /></button>
         </div>
         <div style={{ flex: 1, padding: 18, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ background: 'linear-gradient(135deg, rgba(255,208,0,0.12) 0%, rgba(255,208,0,0.06) 100%)', border: '2px solid rgba(255,208,0,0.4)', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>

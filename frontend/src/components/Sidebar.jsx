@@ -53,29 +53,16 @@ export default function Sidebar({ open, onClose, isMobile }) {
           Menu
         </div>
 
-        <nav style={{ flex: 1 }}>
+        <nav style={{ flex: 1, padding: '4px 0' }}>
           {links.map(l => (
             <NavLink
               key={l.to}
               to={l.to}
               end={l.to === '/'}
               onClick={isMobile ? onClose : undefined}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '13px 16px',
-                color: isActive ? '#FFD000' : 'rgba(255,255,255,0.65)',
-                textDecoration: 'none',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: 13.5,
-                background: isActive ? 'rgba(255,208,0,0.07)' : 'transparent',
-                borderLeft: isActive ? '3px solid #FFD000' : '3px solid transparent',
-                transition: 'all 0.15s',
-                margin: '1px 0',
-              })}
+              className={({ isActive }) => `nav-pill${isActive ? ' active' : ''}`}
             >
-              <span style={{ opacity: 0.8 }}>{l.icon}</span>
+              <span style={{ flexShrink: 0, display: 'flex' }}>{l.icon}</span>
               {l.label}
             </NavLink>
           ))}

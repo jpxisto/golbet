@@ -56,9 +56,8 @@ export default function Home() {
   const abertos = jogos.filter(j => j.status === 'aberto').length;
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column', gap: 12 }}>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid rgba(0,194,100,0.2)', borderTopColor: '#00C264', animation: 'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column', gap: 12 }} role="status" aria-label="Carregando jogos">
+      <div className="spinner" />
       <span style={{ color: 'var(--texto-muted)', fontSize: 13 }}>Carregando jogos...</span>
     </div>
   );

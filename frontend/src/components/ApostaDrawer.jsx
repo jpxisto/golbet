@@ -65,10 +65,11 @@ export default function ApostaDrawer({ jogo, resultadoSelecionado, onClose, onSu
             <div style={{ fontWeight: 800, fontSize: 16 }}>{modoEdicao ? 'Editar Aposta' : 'Fazer Aposta'}</div>
             <div style={{ fontSize: 11, color: 'var(--texto-muted)', marginTop: 2 }}>GolBet</div>
           </div>
-          <button onClick={onClose} style={{
+          <button onClick={onClose} aria-label="Fechar" style={{
             background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
             color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex',
-            borderRadius: 8, padding: 7, transition: 'all 0.15s',
+            alignItems: 'center', justifyContent: 'center',
+            borderRadius: 8, minWidth: 44, minHeight: 44, transition: 'all 0.15s',
           }}>
             <X size={18} />
           </button>

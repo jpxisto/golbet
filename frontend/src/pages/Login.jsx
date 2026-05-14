@@ -6,21 +6,16 @@ import { useAuth } from '../context/AuthContext';
 
 function GolbetLogoFull() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <svg width="52" height="44" viewBox="0 0 52 44" fill="none">
-          <line x1="2" y1="32" x2="24" y2="22" stroke="#00C264" strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
-          <line x1="0" y1="38" x2="20" y2="29" stroke="#00C264" strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
-          <circle cx="36" cy="20" r="15" fill="#fff"/>
-          <path d="M36 8.5 L39.5 15 L47 16 L41.5 21.5 L43 29 L36 25.5 L29 29 L30.5 21.5 L25 16 L32.5 15 Z" fill="#111" opacity="0.7"/>
-        </svg>
-        <div style={{ fontStyle: 'italic', fontWeight: 900, fontSize: 44, letterSpacing: '-2px', lineHeight: 1 }}>
-          <span style={{ color: '#fff' }}>Gol</span>
-          <span style={{ color: '#FFD000' }}>bet</span>
-        </div>
-      </div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,208,0,0.6)', letterSpacing: '2.5px', textTransform: 'uppercase' }}>
-        GolBet
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <svg width="52" height="44" viewBox="0 0 52 44" fill="none" aria-hidden="true">
+        <line x1="2" y1="32" x2="24" y2="22" stroke="#00C264" strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
+        <line x1="0" y1="38" x2="20" y2="29" stroke="#00C264" strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
+        <circle cx="36" cy="20" r="15" fill="#fff"/>
+        <path d="M36 8.5 L39.5 15 L47 16 L41.5 21.5 L43 29 L36 25.5 L29 29 L30.5 21.5 L25 16 L32.5 15 Z" fill="#111" opacity="0.7"/>
+      </svg>
+      <div style={{ fontStyle: 'italic', fontWeight: 900, fontSize: 44, letterSpacing: '-2px', lineHeight: 1 }}>
+        <span style={{ color: '#fff' }}>Gol</span>
+        <span style={{ color: '#FFD000' }}>bet</span>
       </div>
     </div>
   );

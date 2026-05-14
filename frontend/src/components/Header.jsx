@@ -52,23 +52,19 @@ export default function Header({ sidebarOpen, setSidebarOpen, isMobile }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', padding: 6, borderRadius: 6 }}
+          aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
+          aria-expanded={sidebarOpen}
+          style={{
+            background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            minWidth: 44, minHeight: 44, borderRadius: 8, transition: 'color 0.15s',
+          }}
         >
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
         <Link to="/" style={{ textDecoration: 'none' }}>
           <GolbetLogo fontSize={22} />
         </Link>
-        <span style={{
-          display: 'none',
-          fontSize: 10, color: 'rgba(255,208,0,0.7)',
-          fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase',
-          borderLeft: '1px solid rgba(0,194,100,0.2)', paddingLeft: 10, marginLeft: 2,
-          lineHeight: 1.2,
-          '@media(min-width:500px)': { display: 'block' }
-        }}>
-          Apostas & Palpites
-        </span>
       </div>
 
       {/* Right */}
@@ -100,11 +96,12 @@ export default function Header({ sidebarOpen, setSidebarOpen, isMobile }) {
           {/* Logout */}
           <button
             onClick={handleLogout}
-            title="Sair"
+            aria-label="Sair da conta"
             style={{
               background: 'none', border: '1px solid rgba(255,255,255,0.1)',
               color: 'rgba(255,255,255,0.5)', cursor: 'pointer', display: 'flex',
-              padding: 7, borderRadius: 8, transition: 'all 0.15s',
+              alignItems: 'center', justifyContent: 'center',
+              minWidth: 44, minHeight: 44, borderRadius: 8, transition: 'all 0.15s',
             }}
           >
             <LogOut size={16} />
