@@ -25,16 +25,6 @@ const secoes = [
   },
   {
     icon: <DollarSign size={18} />,
-    titulo: 'Prêmios e Taxa',
-    items: [
-      'A casa retém 11% do pote como taxa de administração',
-      '89% do pote é distribuído proporcionalmente entre os vencedores',
-      'Quanto mais você apostar na opção correta, maior sua fatia do prêmio',
-      'Se ninguém acertar, o pote inteiro vai para a casa',
-    ],
-  },
-  {
-    icon: <DollarSign size={18} />,
     titulo: 'Saques',
     items: [
       'Solicite saque na aba "Sacar" informando sua chave Pix',
