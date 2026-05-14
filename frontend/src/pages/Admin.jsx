@@ -234,12 +234,19 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
   const [erro, setErro] = useState('');
 
   // ── Mercados Extras ──
-  const [extrasExistentes, setExtrasExistentes] = useState([]); // extras já salvos no DB
+  const [extrasExistentes, setExtrasExistentes] = useState([]);
   const [extras, setExtras] = useState({ ambos_marcam: false, mais_menos: false, penaltis: false });
   const [linhaGols, setLinhaGols] = useState('2.5');
 
+  // ── Artilheiro ──
+  const [artilheiroExistente, setArtilheiroExistente] = useState(null);
+  const [artilheiroAtivo, setArtilheiroAtivo] = useState(false);
+  const [jogadorA, setJogadorA] = useState('');
+  const [jogadorB, setJogadorB] = useState('');
+
   useEffect(() => {
     if (!editando) return;
+    // Carregar extras
     axios.get(`/api/extras/jogo/${jogo.id}`).then(r => {
       setExtrasExistentes(r.data);
       const mapa = {};
@@ -250,6 +257,15 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
       });
       setExtras(prev => ({ ...prev, ...mapa }));
       setLinhaGols(linha);
+    }).catch(() => {});
+    // Carregar artilheiro
+    axios.get(`/api/artilheiros/${jogo.id}`).then(r => {
+      if (r.data?.mercado) {
+        setArtilheiroExistente(r.data.mercado);
+        setArtilheiroAtivo(true);
+        setJogadorA(r.data.mercado.jogador_a || '');
+        setJogadorB(r.data.mercado.jogador_b || '');
+      }
     }).catch(() => {});
   }, [jogo?.id]);
 
@@ -279,23 +295,49 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
       for (const tipo of ['ambos_marcam', 'mais_menos', 'penaltis']) {
         const ativo = extras[tipo];
         const existente = extrasExistentes.find(e => e.tipo === tipo);
-
         if (ativo && !existente) {
-          // Criar novo
           await axios.post('/api/extras/admin/criar', {
             jogo_id: jogoId, tipo,
             linha: tipo === 'mais_menos' ? parseFloat(linhaGols) || 2.5 : null,
           }, { headers });
         } else if (ativo && existente && tipo === 'mais_menos') {
-          // Atualizar linha se mudou
           const novaLinha = parseFloat(linhaGols) || 2.5;
           if (novaLinha !== existente.linha) {
             await axios.patch(`/api/extras/admin/${existente.id}`, { linha: novaLinha }, { headers });
           }
         } else if (!ativo && existente) {
-          // Remover (devolve saldos)
           await axios.delete(`/api/extras/admin/${existente.id}`, { headers });
         }
+      }
+
+      // Sincronizar artilheiro
+      if (artilheiroAtivo && !artilheiroExistente) {
+        // Criar
+        await axios.post('/api/artilheiros/admin/criar', {
+          jogo_id: jogoId,
+          jogador_a: jogadorA.trim() || null,
+          jogador_b: jogadorB.trim() || null,
+        }, { headers });
+      } else if (artilheiroAtivo && artilheiroExistente && !artilheiroExistente.resultado) {
+        // Atualizar jogadores se mudou
+        const jaA = artilheiroExistente.jogador_a || '';
+        const jaB = artilheiroExistente.jogador_b || '';
+        if (jogadorA.trim() !== jaA || jogadorB.trim() !== jaB) {
+          await axios.patch(`/api/artilheiros/admin/${artilheiroExistente.id}/jogadores`, {
+            jogador_a: jogadorA.trim() || null,
+            jogador_b: jogadorB.trim() || null,
+          }, { headers });
+        }
+      } else if (!artilheiroAtivo && artilheiroExistente && !artilheiroExistente.resultado) {
+        // Remover
+        const pote = Number(artilheiroExistente.pote_total || 0);
+        if (pote > 0) {
+          if (!window.confirm(`O mercado Artilheiro tem R$ ${pote.toFixed(2)} apostados. Remover vai devolver os saldos. Continuar?`)) {
+            setSalvando(false);
+            return;
+          }
+        }
+        await axios.delete(`/api/artilheiros/admin/${artilheiroExistente.id}`, { headers });
       }
 
       onSalvar();
@@ -463,6 +505,77 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
             </div>
           </div>
 
+          {/* ── Artilheiro ── */}
+          <div style={{ padding: '12px 14px', background: '#003D2B', borderRadius: 8, border: artilheiroAtivo ? '1px solid rgba(245,208,32,0.35)' : '1px solid rgba(0,135,79,0.4)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: artilheiroAtivo ? 12 : 0 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>⚽ Mercado Artilheiro</div>
+                <div style={{ fontSize: 11, color: '#B0BEC5' }}>Quem vai marcar mais gols na partida</div>
+              </div>
+              <button
+                onClick={() => {
+                  if (artilheiroAtivo && artilheiroExistente?.resultado) return; // já finalizado
+                  setArtilheiroAtivo(v => !v);
+                }}
+                disabled={!!artilheiroExistente?.resultado}
+                style={{
+                  width: 42, height: 22, borderRadius: 11, border: 'none', cursor: artilheiroExistente?.resultado ? 'not-allowed' : 'pointer',
+                  background: artilheiroAtivo ? '#F5D020' : '#555', position: 'relative',
+                  transition: 'background 0.2s', flexShrink: 0, opacity: artilheiroExistente?.resultado ? 0.5 : 1,
+                }}>
+                <div style={{ width: 16, height: 16, borderRadius: '50%', background: artilheiroAtivo ? '#003D2B' : '#fff', position: 'absolute', top: 3, left: artilheiroAtivo ? 23 : 3, transition: 'left 0.2s' }} />
+              </button>
+            </div>
+            {artilheiroAtivo && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {artilheiroExistente?.resultado && (
+                  <div style={{ fontSize: 11, color: '#43A047', fontWeight: 600 }}>
+                    ✅ Finalizado — não é possível editar
+                  </div>
+                )}
+                {!artilheiroExistente?.resultado && (
+                  <>
+                    <div style={{ fontSize: 11, color: '#B0BEC5' }}>
+                      Nomes dos jogadores (opcional — deixe em branco para usar o nome do time)
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: 10, color: '#B0BEC5', display: 'block', marginBottom: 3 }}>
+                          {form.flag_a} {form.time_a || 'Time A'}
+                        </label>
+                        <input
+                          className="input-golbet"
+                          style={{ fontSize: 13, padding: '6px 10px' }}
+                          value={jogadorA}
+                          onChange={e => setJogadorA(e.target.value)}
+                          placeholder={`Ex: Neymar`}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ fontSize: 10, color: '#B0BEC5', display: 'block', marginBottom: 3 }}>
+                          {form.flag_b} {form.time_b || 'Time B'}
+                        </label>
+                        <input
+                          className="input-golbet"
+                          style={{ fontSize: 13, padding: '6px 10px' }}
+                          value={jogadorB}
+                          onChange={e => setJogadorB(e.target.value)}
+                          placeholder={`Ex: Mbappé`}
+                        />
+                      </div>
+                    </div>
+                    {artilheiroExistente && (
+                      <div style={{ fontSize: 11, color: '#B0BEC5' }}>
+                        Pote atual: <strong style={{ color: '#F5D020' }}>R$ {Number(artilheiroExistente.pote_total || 0).toFixed(2)}</strong>
+                        {' · '}{artilheiroExistente.num_apostas || 0} apostas
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           {erro && <div style={{ color: '#E53935', fontSize: 13 }}>{erro}</div>}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -488,8 +601,6 @@ function GestaoJogos() {
   const [artilheiros, setArtilheiros] = useState({}); // { [jogo_id]: mercado }
   const [resultadoArt, setResultadoArt] = useState({});
   const [relatorioArt, setRelatorioArt] = useState(null);
-  const [editandoJogadores, setEditandoJogadores] = useState({}); // { [art_id]: { jogador_a, jogador_b } }
-  const [formCriarArt, setFormCriarArt] = useState({}); // { [jogo_id]: { jogador_a, jogador_b, aberto } }
 
   const fetchJogos = useCallback(() => {
     axios.get('/api/admin/jogos', { headers }).then(r => setJogos(r.data)).catch(() => {});
@@ -570,20 +681,6 @@ function GestaoJogos() {
     setRelatorio(r.data);
   }
 
-  async function criarArtilheiro(jogoId, jogadorA, jogadorB) {
-    try {
-      await axios.post('/api/artilheiros/admin/criar', { jogo_id: jogoId, jogador_a: jogadorA || null, jogador_b: jogadorB || null }, { headers });
-      setFormCriarArt(prev => { const n = { ...prev }; delete n[jogoId]; return n; });
-      fetchArtilheiros();
-    } catch (e) { alert(e.response?.data?.erro || 'Erro ao criar artilheiro'); }
-  }
-  async function salvarJogadores(artId, jogadorA, jogadorB) {
-    try {
-      await axios.patch(`/api/artilheiros/admin/${artId}/jogadores`, { jogador_a: jogadorA || null, jogador_b: jogadorB || null }, { headers });
-      setEditandoJogadores(prev => { const n = { ...prev }; delete n[artId]; return n; });
-      fetchArtilheiros();
-    } catch (e) { alert(e.response?.data?.erro || 'Erro ao salvar jogadores'); }
-  }
   async function mudarStatusArt(id, status) {
     try {
       await axios.patch(`/api/artilheiros/admin/${id}/status`, { status }, { headers });
@@ -777,106 +874,50 @@ function GestaoJogos() {
             )}
           </div>
 
-          {/* ⚽ Mercado Artilheiro */}
+          {/* ⚽ Mercado Artilheiro — só exibe quando existe; criação/edição via modal */}
           {(() => {
             const art = artilheiros[j.id];
-            const formCriar = formCriarArt[j.id] || { jogador_a: '', jogador_b: '' };
-            // Valores editáveis: prioriza o que o admin está digitando; cai para o salvo no banco
-            const valA = editandoJogadores[art?.id] !== undefined ? editandoJogadores[art.id].jogador_a : (art?.jogador_a || '');
-            const valB = editandoJogadores[art?.id] !== undefined ? editandoJogadores[art.id].jogador_b : (art?.jogador_b || '');
-            const labelA = art ? (art.jogador_a || `${j.flag_a} ${j.time_a}`) : `${j.flag_a} ${j.time_a}`;
-            const labelB = art ? (art.jogador_b || `${j.flag_b} ${j.time_b}`) : `${j.flag_b} ${j.time_b}`;
-            const isDirty = art && editandoJogadores[art.id] !== undefined;
-            const inputSm = { background: '#003D2B', color: '#fff', border: '1px solid #00874F', borderRadius: 5, padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontSize: 12, width: 130 };
-
+            if (!art) return (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(0,135,79,0.12)' }}>
+                <span style={{ fontSize: 11, color: 'rgba(176,190,197,0.5)' }}>⚽ Sem artilheiro — ative no ✏️ Editar</span>
+              </div>
+            );
+            const labelA = art.jogador_a || `${j.flag_a} ${j.time_a}`;
+            const labelB = art.jogador_b || `${j.flag_b} ${j.time_b}`;
             return (
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(0,135,79,0.15)' }}>
-                <div style={{ fontSize: 11, color: '#B0BEC5', fontWeight: 600, marginBottom: 6 }}>⚽ Artilheiro</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: art.resultado ? 0 : 6 }}>
+                  <span style={{ fontSize: 11, color: '#B0BEC5', fontWeight: 600 }}>⚽ Artilheiro</span>
+                  <span style={{ fontSize: 11, color: '#B0BEC5' }}>
+                    Pote: <strong style={{ color: '#F5D020' }}>R$ {Number(art.pote_total || 0).toFixed(2)}</strong>
+                    {' · '}{art.num_apostas || 0} apostas
+                  </span>
+                  {art.resultado && (
+                    <span style={{ fontSize: 11, color: '#43A047', fontWeight: 700 }}>
+                      ✅ {art.resultado === 'A' ? labelA : art.resultado === 'B' ? labelB : '🤝 Empate'}
+                    </span>
+                  )}
+                  <button onClick={() => verRelatorioArt(art.id)} style={{ background: 'rgba(25,118,210,0.15)', border: '1px solid rgba(25,118,210,0.3)', borderRadius: 5, color: '#42A5F5', cursor: 'pointer', padding: '3px 8px', fontSize: 11, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
+                    📊 Apostas
+                  </button>
+                </div>
 
-                {!art ? (
-                  /* Formulário de criação — inputs sempre visíveis */
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ fontSize: 11, color: '#B0BEC5' }}>Nomes dos jogadores (opcional):</div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <input
-                        style={inputSm}
-                        placeholder={`Jogador ${j.flag_a}`}
-                        value={formCriar.jogador_a}
-                        onChange={e => setFormCriarArt({ ...formCriarArt, [j.id]: { ...formCriar, jogador_a: e.target.value } })}
-                      />
-                      <input
-                        style={inputSm}
-                        placeholder={`Jogador ${j.flag_b}`}
-                        value={formCriar.jogador_b}
-                        onChange={e => setFormCriarArt({ ...formCriarArt, [j.id]: { ...formCriar, jogador_b: e.target.value } })}
-                      />
-                      <button onClick={() => criarArtilheiro(j.id, formCriar.jogador_a, formCriar.jogador_b)} style={{ background: 'rgba(0,194,100,0.15)', border: '1px solid rgba(0,194,100,0.4)', borderRadius: 5, color: '#00C264', cursor: 'pointer', padding: '4px 10px', fontSize: 12, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
-                        ➕ Criar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-
-                    {/* Info: pote + apostas + resultado */}
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ fontSize: 11, color: '#B0BEC5' }}>
-                        Pote: <strong style={{ color: '#F5D020' }}>R$ {Number(art.pote_total || 0).toFixed(2)}</strong>
-                        {' · '}{art.num_apostas || 0} apostas
-                        {art.resultado && <span style={{ color: '#43A047', marginLeft: 6 }}>✅ {art.resultado === 'A' ? labelA : art.resultado === 'B' ? labelB : '🤝 Empate'}</span>}
-                      </span>
-                      <button onClick={() => verRelatorioArt(art.id)} style={{ background: 'rgba(25,118,210,0.15)', border: '1px solid rgba(25,118,210,0.3)', borderRadius: 5, color: '#42A5F5', cursor: 'pointer', padding: '3px 8px', fontSize: 11, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
-                        📊
-                      </button>
-                    </div>
-
-                    {/* Inputs de jogadores — sempre visíveis enquanto não finalizado */}
-                    {!art.resultado && (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <input
-                          style={inputSm}
-                          placeholder={`Jogador ${j.flag_a}`}
-                          value={valA}
-                          onChange={e => setEditandoJogadores({ ...editandoJogadores, [art.id]: { jogador_a: e.target.value, jogador_b: valB } })}
-                        />
-                        <input
-                          style={inputSm}
-                          placeholder={`Jogador ${j.flag_b}`}
-                          value={valB}
-                          onChange={e => setEditandoJogadores({ ...editandoJogadores, [art.id]: { jogador_a: valA, jogador_b: e.target.value } })}
-                        />
-                        {isDirty && (
-                          <button onClick={() => salvarJogadores(art.id, valA, valB)} style={{ background: 'rgba(0,194,100,0.15)', border: '1px solid rgba(0,194,100,0.4)', borderRadius: 5, color: '#00C264', cursor: 'pointer', padding: '4px 10px', fontSize: 12, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
-                            💾 Salvar
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Ações — sem botão "Fechar" (fecha junto com o jogo) */}
-                    {!art.resultado && (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                        {art.status === 'fechado' && (
-                          <>
-                            <button onClick={() => mudarStatusArt(art.id, 'aberto')} style={{ background: 'rgba(67,160,71,0.15)', border: '1px solid rgba(67,160,71,0.3)', borderRadius: 5, color: '#43A047', cursor: 'pointer', padding: '3px 8px', fontSize: 11, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
-                              🟢 Reabrir
-                            </button>
-                            <select value={resultadoArt[art.id] || ''} onChange={e => setResultadoArt({ ...resultadoArt, [art.id]: e.target.value })}
-                              style={{ background: '#003D2B', color: '#fff', border: '1px solid #00874F', borderRadius: 5, padding: '3px 8px', fontFamily: 'Inter, sans-serif', fontSize: 12 }}>
-                              <option value="">Artilheiro...</option>
-                              <option value="A">{labelA}</option>
-                              <option value="empate">🤝 Empate</option>
-                              <option value="B">{labelB}</option>
-                            </select>
-                            <button onClick={() => finalizarArtilheiro(art.id, labelA, labelB)} className="btn-amarelo" style={{ fontSize: 11, padding: '3px 10px' }}>🏆 Finalizar</button>
-                          </>
-                        )}
-                        <button onClick={() => deletarArtilheiro(art.id)} style={{ background: 'rgba(229,57,53,0.15)', border: '1px solid rgba(229,57,53,0.3)', borderRadius: 5, color: '#E53935', cursor: 'pointer', padding: '3px 8px', fontSize: 11, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
-                          🗑️
-                        </button>
-                      </div>
-                    )}
-
+                {!art.resultado && art.status === 'fechado' && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button onClick={() => mudarStatusArt(art.id, 'aberto')} style={{ background: 'rgba(67,160,71,0.15)', border: '1px solid rgba(67,160,71,0.3)', borderRadius: 5, color: '#43A047', cursor: 'pointer', padding: '3px 8px', fontSize: 11, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
+                      🟢 Reabrir Artilheiro
+                    </button>
+                    <select value={resultadoArt[art.id] || ''} onChange={e => setResultadoArt({ ...resultadoArt, [art.id]: e.target.value })}
+                      style={{ background: '#003D2B', color: '#fff', border: '1px solid #00874F', borderRadius: 5, padding: '3px 8px', fontFamily: 'Inter, sans-serif', fontSize: 12 }}>
+                      <option value="">Selecionar artilheiro...</option>
+                      <option value="A">{labelA}</option>
+                      <option value="empate">🤝 Empate</option>
+                      <option value="B">{labelB}</option>
+                    </select>
+                    <button onClick={() => finalizarArtilheiro(art.id, labelA, labelB)} className="btn-amarelo" style={{ fontSize: 11, padding: '3px 10px' }}>🏆 Finalizar</button>
+                    <button onClick={() => deletarArtilheiro(art.id)} style={{ background: 'rgba(229,57,53,0.15)', border: '1px solid rgba(229,57,53,0.3)', borderRadius: 5, color: '#E53935', cursor: 'pointer', padding: '3px 8px', fontSize: 11, fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
+                      🗑️
+                    </button>
                   </div>
                 )}
               </div>
