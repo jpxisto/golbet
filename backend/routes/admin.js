@@ -162,6 +162,13 @@ router.delete('/jogos/:id', authAdmin, async (req, res) => {
     if (!jogo) return res.status(404).json({ erro: 'Jogo não encontrado' });
     if (jogo.status === 'aberto') return res.status(400).json({ erro: 'Feche o mercado antes de apagar o jogo.' });
 
+    // Apagar mercados extras vinculados (FK constraint)
+    const extMercados = await all('SELECT id FROM mercados_extras WHERE jogo_id = ?', [req.params.id]);
+    for (const em of extMercados) {
+      await run('DELETE FROM apostas_extras WHERE mercado_id = ?', [em.id]);
+    }
+    await run('DELETE FROM mercados_extras WHERE jogo_id = ?', [req.params.id]);
+
     // Apagar mercado artilheiro vinculado (FK constraint)
     const artMercado = await get('SELECT id FROM mercados_artilheiros WHERE jogo_id = ?', [req.params.id]);
     if (artMercado) {
