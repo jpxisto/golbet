@@ -234,15 +234,71 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
+  // ── Mercados Extras ──
+  const [extrasExistentes, setExtrasExistentes] = useState([]); // extras já salvos no DB
+  const [extras, setExtras] = useState({ ambos_marcam: false, mais_menos: false, penaltis: false });
+  const [linhaGols, setLinhaGols] = useState('2.5');
+
+  useEffect(() => {
+    if (!editando) return;
+    axios.get(`/api/extras/jogo/${jogo.id}`).then(r => {
+      setExtrasExistentes(r.data);
+      const mapa = {};
+      let linha = '2.5';
+      r.data.forEach(m => {
+        mapa[m.tipo] = true;
+        if (m.tipo === 'mais_menos') linha = String(m.linha ?? 2.5);
+      });
+      setExtras(prev => ({ ...prev, ...mapa }));
+      setLinhaGols(linha);
+    }).catch(() => {});
+  }, [jogo?.id]);
+
+  function toggleExtra(tipo) {
+    const existente = extrasExistentes.find(e => e.tipo === tipo);
+    if (!extras[tipo] === false && existente && existente.pote_total > 0) {
+      if (!window.confirm(`Este mercado tem R$ ${Number(existente.pote_total).toFixed(2)} apostados. Remover vai devolver os saldos. Continuar?`)) return;
+    }
+    setExtras(prev => ({ ...prev, [tipo]: !prev[tipo] }));
+  }
+
   async function salvar() {
     if (!form.time_a.trim() || !form.time_b.trim()) return setErro('Informe os dois times');
     setSalvando(true);
+    setErro('');
     try {
+      let jogoId;
       if (editando) {
         await axios.put(`/api/admin/jogos/${jogo.id}`, form, { headers });
+        jogoId = jogo.id;
       } else {
-        await axios.post('/api/admin/jogos', form, { headers });
+        const r = await axios.post('/api/admin/jogos', form, { headers });
+        jogoId = r.data.id;
       }
+
+      // Sincronizar extras
+      for (const tipo of ['ambos_marcam', 'mais_menos', 'penaltis']) {
+        const ativo = extras[tipo];
+        const existente = extrasExistentes.find(e => e.tipo === tipo);
+
+        if (ativo && !existente) {
+          // Criar novo
+          await axios.post('/api/extras/admin/criar', {
+            jogo_id: jogoId, tipo,
+            linha: tipo === 'mais_menos' ? parseFloat(linhaGols) || 2.5 : null,
+          }, { headers });
+        } else if (ativo && existente && tipo === 'mais_menos') {
+          // Atualizar linha se mudou
+          const novaLinha = parseFloat(linhaGols) || 2.5;
+          if (novaLinha !== existente.linha) {
+            await axios.patch(`/api/extras/admin/${existente.id}`, { linha: novaLinha }, { headers });
+          }
+        } else if (!ativo && existente) {
+          // Remover (devolve saldos)
+          await axios.delete(`/api/extras/admin/${existente.id}`, { headers });
+        }
+      }
+
       onSalvar();
     } catch (e) {
       setErro(e.response?.data?.erro || 'Erro ao salvar');
@@ -321,6 +377,91 @@ function ModalJogo({ jogo, onSalvar, onFechar, headers }) {
                 transition: 'left 0.2s',
               }} />
             </button>
+          </div>
+
+          {/* ── Mercados Extras ── */}
+          <div style={{ padding: '12px 14px', background: '#003D2B', borderRadius: 8, border: '1px solid rgba(0,135,79,0.4)' }}>
+            <div style={{ fontSize: 12, color: '#F5D020', fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              📊 Mercados Extras
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+              {/* Ambos Marcam */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>⚽ Ambos Marcam?</div>
+                    <div style={{ fontSize: 11, color: '#B0BEC5' }}>Os dois times marcam pelo menos 1 gol</div>
+                  </div>
+                  <button onClick={() => toggleExtra('ambos_marcam')} style={{
+                    width: 42, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
+                    background: extras.ambos_marcam ? '#43A047' : '#555', position: 'relative',
+                    transition: 'background 0.2s', flexShrink: 0,
+                  }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: extras.ambos_marcam ? 23 : 3, transition: 'left 0.2s' }} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Mais/Menos Gols */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>📊 Mais/Menos Gols</div>
+                    <div style={{ fontSize: 11, color: '#B0BEC5' }}>Total de gols acima ou abaixo da linha</div>
+                  </div>
+                  <button onClick={() => toggleExtra('mais_menos')} style={{
+                    width: 42, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
+                    background: extras.mais_menos ? '#43A047' : '#555', position: 'relative',
+                    transition: 'background 0.2s', flexShrink: 0,
+                  }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: extras.mais_menos ? 23 : 3, transition: 'left 0.2s' }} />
+                  </button>
+                </div>
+                {extras.mais_menos && (
+                  <div style={{ marginTop: 8 }}>
+                    <label style={{ fontSize: 11, color: '#B0BEC5', display: 'block', marginBottom: 4 }}>
+                      Linha de gols — apostadores escolhem se o total será mais ou menos que este valor
+                    </label>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {['0.5','1.5','2.5','3.5','4.5'].map(v => (
+                        <button key={v} onClick={() => setLinhaGols(v)} style={{
+                          padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: 13,
+                          background: linhaGols === v ? '#F5D020' : 'rgba(255,255,255,0.08)',
+                          color: linhaGols === v ? '#003D2B' : '#fff',
+                        }}>{v}</button>
+                      ))}
+                      <input
+                        type="number" min={0.5} max={9.5} step={0.5}
+                        value={linhaGols}
+                        onChange={e => setLinhaGols(e.target.value)}
+                        className="input-golbet"
+                        style={{ width: 70, fontSize: 14, fontWeight: 700, padding: '6px 10px' }}
+                        placeholder="outro"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pênaltis */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>🎯 Pênaltis?</div>
+                    <div style={{ fontSize: 11, color: '#B0BEC5' }}>A partida terá disputa de pênaltis</div>
+                  </div>
+                  <button onClick={() => toggleExtra('penaltis')} style={{
+                    width: 42, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
+                    background: extras.penaltis ? '#43A047' : '#555', position: 'relative',
+                    transition: 'background 0.2s', flexShrink: 0,
+                  }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: extras.penaltis ? 23 : 3, transition: 'left 0.2s' }} />
+                  </button>
+                </div>
+              </div>
+
+            </div>
           </div>
 
           {erro && <div style={{ color: '#E53935', fontSize: 13 }}>{erro}</div>}

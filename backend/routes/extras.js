@@ -210,6 +210,34 @@ router.post('/admin/finalizar', authAdmin, async (req, res) => {
   }
 });
 
+// ─── Admin: editar mercado (linha, status) ────────────────────────────────────
+router.patch('/admin/:id', authAdmin, async (req, res) => {
+  const { linha, status } = req.body;
+  try {
+    const mercado = await get('SELECT * FROM mercados_extras WHERE id = ?', [req.params.id]);
+    if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
+    if (mercado.resultado) return res.status(400).json({ erro: 'Mercado finalizado não pode ser editado' });
+
+    const campos = [];
+    const params = [];
+    if (linha !== undefined && mercado.tipo === 'mais_menos') {
+      campos.push('linha = ?');
+      params.push(parseFloat(linha) || 2.5);
+    }
+    if (status !== undefined && ['aberto', 'fechado'].includes(status)) {
+      campos.push('status = ?');
+      params.push(status);
+    }
+    if (campos.length > 0) {
+      params.push(req.params.id);
+      await run(`UPDATE mercados_extras SET ${campos.join(', ')} WHERE id = ?`, params);
+    }
+    res.json({ sucesso: true });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro ao atualizar mercado' });
+  }
+});
+
 // ─── Admin: deletar mercado ───────────────────────────────────────────────────
 router.delete('/admin/:id', authAdmin, async (req, res) => {
   try {
