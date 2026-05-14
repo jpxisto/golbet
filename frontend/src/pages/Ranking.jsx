@@ -74,12 +74,12 @@ export default function Ranking() {
                     }}>
                       <div style={{ fontSize: isFirst ? 36 : 26, marginBottom: 6, lineHeight: 1 }}>{medalhas[col]}</div>
                       <div style={{
-                        fontSize: isFirst ? 14 : 12, fontWeight: 800,
+                        fontSize: isFirst ? 13 : 11, fontWeight: 800,
                         color: isFirst ? '#FFD000' : '#fff',
-                        marginBottom: 8, lineHeight: 1.2,
+                        marginBottom: 8, lineHeight: 1.3,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
-                        {r.nome.split(' ')[0]}
+                        {r.nome.split(' ').slice(0, 2).join(' ')}
                       </div>
                       <div style={{ fontSize: isFirst ? 28 : 20, fontWeight: 900, color: isFirst ? '#FFD000' : 'var(--texto-sec)', lineHeight: 1 }}>
                         {r.pontos}
