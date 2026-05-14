@@ -144,7 +144,12 @@ router.get('/ranking', async (req, res) => {
         (SELECT COUNT(*) FROM apostas_longo_prazo WHERE apostador_id = ap.id) +
         (SELECT COUNT(*) FROM apostas_artilheiros WHERE apostador_id = ap.id) as total_apostas
       FROM apostadores ap
-      HAVING total_apostas > 0
+      WHERE (
+        (SELECT COUNT(*) FROM apostas WHERE apostador_id = ap.id) +
+        (SELECT COUNT(*) FROM apostas_extras WHERE apostador_id = ap.id) +
+        (SELECT COUNT(*) FROM apostas_longo_prazo WHERE apostador_id = ap.id) +
+        (SELECT COUNT(*) FROM apostas_artilheiros WHERE apostador_id = ap.id)
+      ) > 0
       ORDER BY vitorias DESC, total_premio DESC
     `);
     const result = ranking.map((r, i) => ({
