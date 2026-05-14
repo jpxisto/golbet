@@ -15,7 +15,7 @@ async function calcOdds(jogoId) {
 
 // Lógica de cálculo extraída (reusada no batch abaixo)
 function oddsFromRows(pote, apostas, numApostadores) {
-  const potePremios = pote * 0.9;
+  const potePremios = pote * 0.89;
   const map = { A: 0, empate: 0, B: 0 };
   apostas.forEach(a => { map[a.resultado] = Number(a.total) || 0; });
   const calcOdd = t => (t === 0 || potePremios === 0) ? 0 : parseFloat((potePremios / t).toFixed(2));

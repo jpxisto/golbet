@@ -105,8 +105,8 @@ router.patch('/admin/:id/finalizar', authAdmin, async (req, res) => {
     if (mercado.resultado) return res.status(400).json({ erro: 'Mercado já foi finalizado' });
 
     const apostas = await all('SELECT * FROM apostas_artilheiros WHERE mercado_id = ?', [mercado.id]);
-    const potePremios = mercado.pote_total * 0.9;
-    const taxaCasa = mercado.pote_total * 0.1;
+    const potePremios = mercado.pote_total * 0.89;
+    const taxaCasa = mercado.pote_total * 0.11;
 
     const vencedores = apostas.filter(a => a.opcao_escolhida === resultado);
     const totalVencedores = vencedores.reduce((sum, a) => sum + a.valor, 0);

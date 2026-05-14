@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { PlusCircle, Copy, Check } from 'lucide-react';
 
-const CHAVE_PIX = import.meta.env.VITE_CHAVE_PIX || '(61) 99999-9999';
+const CHAVE_PIX = import.meta.env.VITE_CHAVE_PIX || '61985056330';
 
 export default function Deposito() {
   const { usuario, addToast } = useAuth();

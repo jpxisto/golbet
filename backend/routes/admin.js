@@ -200,8 +200,8 @@ router.patch('/jogos/:id/finalizar', authAdmin, async (req, res) => {
 
   const apostas = await all('SELECT * FROM apostas WHERE jogo_id = ?', [jogoId]);
   const poteTotal = apostas.reduce((s, a) => s + a.valor, 0);
-  const taxaCasa = poteTotal * 0.10;
-  const potePremios = poteTotal * 0.90;
+  const taxaCasa = poteTotal * 0.11;
+  const potePremios = poteTotal * 0.89;
   const vencedoras = apostas.filter(a => a.resultado === resultado);
   const totalVencedor = vencedoras.reduce((s, a) => s + a.valor, 0);
 
@@ -254,7 +254,7 @@ router.get('/jogos/:id/relatorio', authAdmin, async (req, res) => {
     empate: apostas.filter(a => a.resultado === 'empate').reduce((s, a) => s + a.valor, 0),
     B: apostas.filter(a => a.resultado === 'B').reduce((s, a) => s + a.valor, 0),
   };
-  res.json({ jogo, apostas, poteTotal, taxaCasa: jogo.taxa_casa, potePremios: poteTotal * 0.9, por_resultado });
+  res.json({ jogo, apostas, poteTotal, taxaCasa: jogo.taxa_casa, potePremios: poteTotal * 0.89, por_resultado });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -378,8 +378,8 @@ router.patch('/longo-prazo/mercados/:id/finalizar', authAdmin, async (req, res) 
   try {
     const apostas = await all('SELECT * FROM apostas_longo_prazo WHERE mercado_id = ?', [mercadoId]);
     const poteTotal = apostas.reduce((s, a) => s + a.valor, 0);
-    const taxaCasa = poteTotal * 0.10;
-    const potePremios = poteTotal * 0.90;
+    const taxaCasa = poteTotal * 0.11;
+    const potePremios = poteTotal * 0.89;
 
     const vencedoras = apostas.filter(a => a.opcao_escolhida === resultado);
     const totalVencedores = vencedoras.reduce((s, a) => s + a.valor, 0);
@@ -442,8 +442,8 @@ router.get('/longo-prazo/mercados/:id/apostas', authAdmin, async (req, res) => {
       mercado: { ...mercado, opcoes: JSON.parse(mercado.opcoes || '[]') },
       apostas,
       poteTotal,
-      potePremios: poteTotal * 0.9,
-      taxaCasa: poteTotal * 0.1,
+      potePremios: poteTotal * 0.89,
+      taxaCasa: poteTotal * 0.11,
     });
   } catch (e) {
     res.status(500).json({ erro: 'Erro interno' });
