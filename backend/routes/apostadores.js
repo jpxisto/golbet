@@ -61,6 +61,70 @@ router.post('/login', async (req, res) => {
   });
 });
 
+// ─── Minhas apostas (todos os tipos) ─────────────────────────────────────────
+router.get('/minhas-apostas/:id', async (req, res) => {
+  const aid = req.params.id;
+  try {
+    // 1. Apostas de jogos
+    const apostasJogo = await all(`
+      SELECT a.id, 'jogo' as tipo, a.valor, a.status, a.premio, a.criado_em,
+        a.resultado as opcao_escolhida,
+        j.time_a, j.flag_a, j.time_b, j.flag_b, j.status as contexto_status,
+        j.pote_total as pote_total,
+        NULL as titulo
+      FROM apostas a JOIN jogos j ON a.jogo_id = j.id
+      WHERE a.apostador_id = ?
+    `, [aid]);
+
+    // 2. Apostas extras
+    const apostasExtras = await all(`
+      SELECT ae.id, 'extra' as tipo, ae.valor, ae.status, ae.premio, ae.criado_em,
+        ae.opcao_escolhida,
+        j.time_a, j.flag_a, j.time_b, j.flag_b, j.status as contexto_status,
+        me.pote_total, me.tipo as extra_tipo, me.linha,
+        NULL as titulo
+      FROM apostas_extras ae
+      JOIN mercados_extras me ON ae.mercado_id = me.id
+      JOIN jogos j ON me.jogo_id = j.id
+      WHERE ae.apostador_id = ?
+    `, [aid]);
+
+    // 3. Apostas longo prazo
+    const apostasLP = await all(`
+      SELECT a.id, 'longo_prazo' as tipo, a.valor, a.status, a.premio, a.criado_em,
+        a.opcao_escolhida,
+        NULL as time_a, NULL as flag_a, NULL as time_b, NULL as flag_b,
+        m.status as contexto_status,
+        m.pote_total,
+        m.titulo
+      FROM apostas_longo_prazo a JOIN mercados_longo_prazo m ON a.mercado_id = m.id
+      WHERE a.apostador_id = ?
+    `, [aid]);
+
+    // 4. Apostas artilheiro
+    const apostasArt = await all(`
+      SELECT aa.id, 'artilheiro' as tipo, aa.valor, aa.status, aa.premio, aa.criado_em,
+        aa.opcao_escolhida,
+        j.time_a, j.flag_a, j.time_b, j.flag_b, j.status as contexto_status,
+        ma.pote_total, ma.jogador_a, ma.jogador_b,
+        NULL as titulo
+      FROM apostas_artilheiros aa
+      JOIN mercados_artilheiros ma ON aa.mercado_id = ma.id
+      JOIN jogos j ON ma.jogo_id = j.id
+      WHERE aa.apostador_id = ?
+    `, [aid]);
+
+    const todas = [
+      ...apostasJogo,
+      ...apostasExtras,
+      ...apostasLP,
+      ...apostasArt,
+    ].sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em));
+
+    res.json(todas);
+  } catch (e) { res.status(500).json({ erro: 'Erro ao buscar apostas: ' + e.message }); }
+});
+
 // ─── Ranking ──────────────────────────────────────────────────────────────────
 router.get('/ranking', async (req, res) => {
   try {

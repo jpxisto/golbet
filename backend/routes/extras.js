@@ -154,7 +154,7 @@ router.post('/admin/finalizar', authAdmin, async (req, res) => {
   try {
     const mercado = await get('SELECT * FROM mercados_extras WHERE id = ?', [mercado_id]);
     if (!mercado) return res.status(404).json({ erro: 'Mercado não encontrado' });
-    if (mercado.status === 'fechado') return res.status(400).json({ erro: 'Mercado já finalizado' });
+    if (mercado.resultado) return res.status(400).json({ erro: 'Mercado já finalizado' });
 
     const tipoInfo = TIPOS[mercado.tipo];
     if (!tipoInfo || !tipoInfo.opcoes.includes(resultado))

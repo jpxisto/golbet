@@ -601,6 +601,9 @@ function GestaoJogos() {
   const [artilheiros, setArtilheiros] = useState({}); // { [jogo_id]: mercado }
   const [resultadoArt, setResultadoArt] = useState({});
   const [relatorioArt, setRelatorioArt] = useState(null);
+  const [extrasMap, setExtrasMap] = useState({}); // { [jogo_id]: [mercado,...] }
+  const [resultadoExtra, setResultadoExtra] = useState({}); // { [mercado_id]: opcao }
+  const [loadingExtra, setLoadingExtra] = useState({});
 
   const fetchJogos = useCallback(() => {
     axios.get('/api/admin/jogos', { headers }).then(r => setJogos(r.data)).catch(() => {});
@@ -616,7 +619,31 @@ function GestaoJogos() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => { fetchJogos(); fetchArtilheiros(); }, [fetchJogos, fetchArtilheiros]);
+  const fetchExtras = useCallback(() => {
+    axios.get('/api/extras/admin/lista', { headers })
+      .then(r => {
+        const map = {};
+        r.data.forEach(m => {
+          if (!map[m.jogo_id]) map[m.jogo_id] = [];
+          map[m.jogo_id].push(m);
+        });
+        setExtrasMap(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchJogos(); fetchArtilheiros(); fetchExtras(); }, [fetchJogos, fetchArtilheiros, fetchExtras]);
+
+  async function finalizarExtra(mercadoId, jogoId) {
+    if (!resultadoExtra[mercadoId]) return alert('Selecione o resultado');
+    setLoadingExtra(p => ({ ...p, [mercadoId]: true }));
+    try {
+      await axios.post('/api/extras/admin/finalizar', { mercado_id: mercadoId, resultado: resultadoExtra[mercadoId] }, { headers });
+      fetchExtras();
+      setResultadoExtra(p => { const n = { ...p }; delete n[mercadoId]; return n; });
+    } catch (e) { alert(e.response?.data?.erro || 'Erro ao finalizar extra'); }
+    setLoadingExtra(p => ({ ...p, [mercadoId]: false }));
+  }
 
   async function mudarStatus(id, status) {
     await axios.patch(`/api/admin/jogos/${id}/status`, { status }, { headers });
@@ -657,6 +684,7 @@ function GestaoJogos() {
 
     fetchJogos();
     fetchArtilheiros();
+    fetchExtras();
   }
   async function finalizar(id) {
     if (!resultado[id]) return alert('Selecione o resultado');
@@ -715,7 +743,7 @@ function GestaoJogos() {
         <ModalJogo
           jogo={modalJogo === 'novo' ? null : modalJogo}
           headers={headers}
-          onSalvar={() => { setModalJogo(null); fetchJogos(); }}
+          onSalvar={() => { setModalJogo(null); fetchJogos(); fetchArtilheiros(); fetchExtras(); }}
           onFechar={() => setModalJogo(null)}
         />
       )}
@@ -920,6 +948,60 @@ function GestaoJogos() {
                     </button>
                   </div>
                 )}
+              </div>
+            );
+          })()}
+
+          {/* 📊 Mercados Extras — finalização */}
+          {(() => {
+            const extras = extrasMap[j.id] || [];
+            const pendentes = extras.filter(e => !e.resultado); // fechados mas não finalizados
+            if (extras.length === 0) return null;
+            const TIPOS_LABEL = { ambos_marcam: 'Ambos Marcam', mais_menos: 'Mais/Menos Gols', penaltis: 'Pênaltis' };
+            const OPC = { ambos_marcam: ['sim','nao'], mais_menos: ['mais','menos'], penaltis: ['sim','nao'] };
+            const OPC_LABEL = { sim: 'Sim', nao: 'Não', mais: 'Mais', menos: 'Menos' };
+            return (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(0,135,79,0.12)' }}>
+                <div style={{ fontSize: 11, color: '#B0BEC5', fontWeight: 600, marginBottom: 6 }}>📊 Mercados Extras</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {extras.map(e => {
+                    const tipoLabel = TIPOS_LABEL[e.tipo] || e.tipo;
+                    const linha = e.tipo === 'mais_menos' ? ` (${e.linha})` : '';
+                    return (
+                      <div key={e.id} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, color: '#B0BEC5', minWidth: 120 }}>
+                          {tipoLabel}{linha}
+                          {' · '}R$ {Number(e.pote_total || 0).toFixed(2)}
+                          {' · '}{e.apostas?.length || 0} apostas
+                        </span>
+                        {e.resultado ? (
+                          <span style={{ fontSize: 11, color: '#43A047', fontWeight: 700 }}>
+                            ✅ {OPC_LABEL[e.resultado] || e.resultado}
+                          </span>
+                        ) : (
+                          <>
+                            <select
+                              value={resultadoExtra[e.id] || ''}
+                              onChange={ev => setResultadoExtra(p => ({ ...p, [e.id]: ev.target.value }))}
+                              style={{ background: '#003D2B', color: '#fff', border: '1px solid #00874F', borderRadius: 5, padding: '3px 8px', fontFamily: 'Inter, sans-serif', fontSize: 11 }}
+                            >
+                              <option value="">Resultado...</option>
+                              {(OPC[e.tipo] || []).map(o => <option key={o} value={o}>{OPC_LABEL[o]}</option>)}
+                            </select>
+                            <button
+                              onClick={() => finalizarExtra(e.id, j.id)}
+                              disabled={!!loadingExtra[e.id]}
+                              className="btn-amarelo"
+                              style={{ fontSize: 11, padding: '3px 10px' }}
+                            >
+                              {loadingExtra[e.id] ? '...' : '🏆 Finalizar'}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })()}
