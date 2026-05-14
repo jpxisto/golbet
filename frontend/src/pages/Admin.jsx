@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { ShieldCheck, Users, DollarSign, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 
-const ABA = { dashboard: 'Dashboard', financeiro: 'Financeiro', depositos: 'Depósitos', saques: 'Saques', jogos: 'Jogos', extras: 'Extras', longoplazo: 'Longo Prazo', apostadores: 'Apostadores' };
+const ABA = { dashboard: 'Dashboard', financeiro: 'Financeiro', depositos: 'Depósitos', saques: 'Saques', jogos: 'Jogos', longoplazo: 'Longo Prazo', apostadores: 'Apostadores' };
 
 function useAdmin() {
   const [senha] = useState(() => localStorage.getItem('golbet_admin') || '');
@@ -55,7 +55,6 @@ function Dashboard() {
 
   const cards = [
     { label: 'Total arrecadado', val: `R$ ${Number(stats.totalArrecadado).toFixed(2)}`, icon: <DollarSign size={20} />, color: '#F5D020' },
-    { label: 'Lucro da casa', val: `R$ ${Number(stats.lucroCasa).toFixed(2)}`, icon: <Trophy size={20} />, color: '#43A047' },
     { label: 'Depósitos pendentes', val: stats.depositosPendentes, icon: <DollarSign size={20} />, color: stats.depositosPendentes > 0 ? '#E53935' : '#43A047', badge: stats.depositosPendentes > 0 },
     { label: 'Saques pendentes', val: stats.saquesPendentes, icon: <DollarSign size={20} />, color: stats.saquesPendentes > 0 ? '#F57C00' : '#43A047', badge: stats.saquesPendentes > 0 },
     { label: 'Total apostadores', val: stats.totalApostadores, icon: <Users size={20} />, color: '#1976D2' },
@@ -510,13 +509,41 @@ function GestaoJogos() {
 
   async function mudarStatus(id, status) {
     await axios.patch(`/api/admin/jogos/${id}/status`, { status }, { headers });
-    // Fechar mercado artilheiro automaticamente quando o jogo é encerrado
+
     if (status === 'encerrado') {
+      // Fechar artilheiro
       const art = artilheiros[id];
       if (art && !art.resultado && art.status === 'aberto') {
         try { await axios.patch(`/api/artilheiros/admin/${art.id}/status`, { status: 'fechado' }, { headers }); } catch {}
       }
+      // Fechar todos os mercados extras do jogo
+      try {
+        const extrasRes = await axios.get(`/api/extras/jogo/${id}`);
+        for (const e of extrasRes.data) {
+          if (e.status === 'aberto') {
+            await axios.patch(`/api/extras/admin/${e.id}`, { status: 'fechado' }, { headers });
+          }
+        }
+      } catch {}
     }
+
+    if (status === 'aberto') {
+      // Reabrir artilheiro se existir e não finalizado
+      const art = artilheiros[id];
+      if (art && !art.resultado && art.status === 'fechado') {
+        try { await axios.patch(`/api/artilheiros/admin/${art.id}/status`, { status: 'aberto' }, { headers }); } catch {}
+      }
+      // Reabrir extras
+      try {
+        const extrasRes = await axios.get(`/api/extras/jogo/${id}`);
+        for (const e of extrasRes.data) {
+          if (!e.resultado && e.status === 'fechado') {
+            await axios.patch(`/api/extras/admin/${e.id}`, { status: 'aberto' }, { headers });
+          }
+        }
+      } catch {}
+    }
+
     fetchJogos();
     fetchArtilheiros();
   }
@@ -732,6 +759,9 @@ function GestaoJogos() {
             )}
             {j.status === 'encerrado' && (
               <>
+                <button className="btn-verde" style={{ fontSize: 13, padding: '6px 14px', background: '#1565C0' }} onClick={() => mudarStatus(j.id, 'aberto')}>
+                  🔓 Reabrir Mercado
+                </button>
                 <select value={resultado[j.id] || ''} onChange={e => setResultado({ ...resultado, [j.id]: e.target.value })}
                   style={{ background: '#003D2B', color: '#fff', border: '1px solid #00874F', borderRadius: 6, padding: '6px 10px', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
                   <option value="">Selecionar resultado</option>
@@ -1312,10 +1342,50 @@ function GestaoLongoPrazo() {
 function Financeiro() {
   const { headers } = useAdmin();
   const [data, setData] = useState(null);
+  const [autenticado, setAutenticado] = useState(false);
+  const [senhaInput, setSenhaInput] = useState('');
+  const [errSenha, setErrSenha] = useState('');
+
+  async function verificarSenha(e) {
+    e.preventDefault();
+    try {
+      await axios.post('/api/admin/login', { senha: senhaInput });
+      setAutenticado(true);
+    } catch {
+      setErrSenha('Senha incorreta');
+      setSenhaInput('');
+    }
+  }
 
   useEffect(() => {
+    if (!autenticado) return;
     axios.get('/api/admin/financeiro', { headers }).then(r => setData(r.data)).catch(() => {});
-  }, []);
+  }, [autenticado]);
+
+  if (!autenticado) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '48px 20px' }}>
+      <div style={{ fontSize: 40 }}>🔐</div>
+      <div style={{ fontWeight: 700, fontSize: 17 }}>Acesso Restrito</div>
+      <div style={{ fontSize: 13, color: '#B0BEC5', textAlign: 'center', maxWidth: 300 }}>
+        Confirme a senha de administrador para visualizar o relatório financeiro
+      </div>
+      <form onSubmit={verificarSenha} style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 320 }}>
+        <input
+          className="input-golbet"
+          type="password"
+          value={senhaInput}
+          onChange={e => setSenhaInput(e.target.value)}
+          placeholder="Senha do admin"
+          autoFocus
+          required
+        />
+        {errSenha && <div style={{ color: '#E53935', fontSize: 13 }}>{errSenha}</div>}
+        <button className="btn-amarelo" type="submit" style={{ padding: '11px 0', fontSize: 14 }}>
+          🔓 Confirmar acesso
+        </button>
+      </form>
+    </div>
+  );
 
   if (!data) return <div style={{ color: '#B0BEC5' }}>Carregando...</div>;
 
@@ -1493,7 +1563,7 @@ export default function Admin() {
 
   if (!logado) return <AdminLogin onLogin={() => setLogado(true)} />;
 
-  const COMP = { dashboard: Dashboard, financeiro: Financeiro, depositos: GestaoDepositos, saques: GestaoSaques, jogos: GestaoJogos, extras: GestaoExtras, longoplazo: GestaoLongoPrazo, apostadores: GestaoApostadores };
+  const COMP = { dashboard: Dashboard, financeiro: Financeiro, depositos: GestaoDepositos, saques: GestaoSaques, jogos: GestaoJogos, longoplazo: GestaoLongoPrazo, apostadores: GestaoApostadores };
   const Comp = COMP[aba];
 
   return (
