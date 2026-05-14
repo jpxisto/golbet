@@ -63,6 +63,12 @@ app.use('/api/artilheiros', (req, res, next) => {
   return limiterLeitura(req, res, next);
 }, require('./routes/artilheiros'));
 
+// Extras (ambos marcam, mais/menos gols, pênaltis)
+app.use('/api/extras', (req, res, next) => {
+  if (req.method === 'POST' && req.path === '/apostar') return limiterAposta(req, res, next);
+  return limiterLeitura(req, res, next);
+}, require('./routes/extras'));
+
 // Serve frontend em produção
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../frontend/dist');

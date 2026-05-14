@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { ShieldCheck, Users, DollarSign, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 
-const ABA = { dashboard: 'Dashboard', depositos: 'Depósitos', saques: 'Saques', jogos: 'Jogos', longoplazo: 'Longo Prazo', apostadores: 'Apostadores' };
+const ABA = { dashboard: 'Dashboard', financeiro: 'Financeiro', depositos: 'Depósitos', saques: 'Saques', jogos: 'Jogos', extras: 'Extras', longoplazo: 'Longo Prazo', apostadores: 'Apostadores' };
 
 function useAdmin() {
   const [senha] = useState(() => localStorage.getItem('golbet_admin') || '');
@@ -1167,6 +1167,184 @@ function GestaoLongoPrazo() {
   );
 }
 
+// ─── Financeiro (com senha) ───────────────────────────────────────────────────
+function Financeiro() {
+  const { headers } = useAdmin();
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    axios.get('/api/admin/financeiro', { headers }).then(r => setData(r.data)).catch(() => {});
+  }, []);
+
+  if (!data) return <div style={{ color: '#B0BEC5' }}>Carregando...</div>;
+
+  const items = [
+    { label: 'Total Depositado', value: data.totalDepositado, color: '#43A047', icon: '💰' },
+    { label: 'Total Sacado', value: data.totalSacado, color: '#E53935', icon: '💸' },
+    { label: 'Lucro da Casa', value: data.lucroCasa, color: '#FFD000', icon: '🏦' },
+    { label: 'Total Apostado', value: data.totalApostado, color: '#1976D2', icon: '🎯' },
+    { label: 'Total Prêmios Pagos', value: data.totalGanho, color: '#FF9800', icon: '🏆' },
+    { label: 'Saldo Total Clientes', value: data.saldoTotal, color: '#00BCD4', icon: '👥' },
+    { label: 'Apostas Ativas (R$)', value: data.apostasAtivas, color: '#9C27B0', icon: '⏳' },
+    { label: 'Saques Pendentes (R$)', value: data.saquesPendentes, color: '#F57C00', icon: '⚠️' },
+  ];
+
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>Dashboard Financeiro</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+        {items.map(item => (
+          <div key={item.label} className="card-golbet" style={{ padding: '16px 14px' }}>
+            <div style={{ fontSize: 12, color: '#B0BEC5', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>{item.icon}</span> {item.label}
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: item.color }}>
+              R$ {Number(item.value || 0).toFixed(2)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="card-golbet" style={{ marginTop: 14, padding: 14, textAlign: 'center' }}>
+        <div style={{ fontSize: 12, color: '#B0BEC5' }}>Total de Apostadores</div>
+        <div style={{ fontSize: 28, fontWeight: 900, color: '#FFD000' }}>{data.totalApostadores}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Gestão Extras (Ambos Marcam / Mais-Menos / Pênaltis) ────────────────────
+function GestaoExtras() {
+  const { headers } = useAdmin();
+  const [mercados, setMercados] = useState([]);
+  const [jogos, setJogos] = useState([]);
+  const [form, setForm] = useState({ jogo_id: '', tipo: 'ambos_marcam', linha: '2.5' });
+  const [finRes, setFinRes] = useState({});
+  const [loading, setLoading] = useState({});
+
+  const TIPOS = { ambos_marcam: 'Ambos Marcam', mais_menos: 'Mais/Menos Gols', penaltis: 'Pênaltis' };
+  const OPC = { ambos_marcam: ['sim', 'nao'], mais_menos: ['mais', 'menos'], penaltis: ['sim', 'nao'] };
+  const OPC_LABEL = { sim: 'Sim', nao: 'Não', mais: 'Mais', menos: 'Menos' };
+
+  const fetchMercados = useCallback(() => {
+    axios.get('/api/extras/admin/lista', { headers }).then(r => setMercados(r.data)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchMercados();
+    axios.get('/api/jogos').then(r => setJogos(r.data)).catch(() => {});
+  }, [fetchMercados]);
+
+  async function criar(e) {
+    e.preventDefault();
+    try {
+      await axios.post('/api/extras/admin/criar', {
+        jogo_id: parseInt(form.jogo_id),
+        tipo: form.tipo,
+        linha: form.tipo === 'mais_menos' ? parseFloat(form.linha) : undefined,
+      }, { headers });
+      setForm({ jogo_id: '', tipo: 'ambos_marcam', linha: '2.5' });
+      fetchMercados();
+    } catch (e) { alert(e.response?.data?.erro || 'Erro'); }
+  }
+
+  async function finalizar(id) {
+    if (!finRes[id]) return alert('Selecione o resultado');
+    setLoading(prev => ({ ...prev, [id]: true }));
+    try {
+      await axios.post('/api/extras/admin/finalizar', { mercado_id: id, resultado: finRes[id] }, { headers });
+      fetchMercados();
+    } catch (e) { alert(e.response?.data?.erro || 'Erro'); }
+    setLoading(prev => ({ ...prev, [id]: false }));
+  }
+
+  async function excluir(id) {
+    if (!confirm('Excluir mercado? Apostas serão devolvidas.')) return;
+    try {
+      await axios.delete(`/api/extras/admin/${id}`, { headers });
+      fetchMercados();
+    } catch (e) { alert(e.response?.data?.erro || 'Erro'); }
+  }
+
+  return (
+    <div>
+      {/* Form criar */}
+      <form onSubmit={criar} className="card-golbet" style={{ padding: 16, marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+        <div style={{ flex: 1, minWidth: 150 }}>
+          <label style={{ fontSize: 12, color: '#B0BEC5', display: 'block', marginBottom: 4 }}>Jogo</label>
+          <select className="input-golbet" value={form.jogo_id} onChange={e => setForm({ ...form, jogo_id: e.target.value })} required>
+            <option value="">Selecione...</option>
+            {jogos.map(j => <option key={j.id} value={j.id}>{j.flag_a} {j.time_a} vs {j.time_b} {j.flag_b}</option>)}
+          </select>
+        </div>
+        <div style={{ minWidth: 140 }}>
+          <label style={{ fontSize: 12, color: '#B0BEC5', display: 'block', marginBottom: 4 }}>Tipo</label>
+          <select className="input-golbet" value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}>
+            {Object.entries(TIPOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        {form.tipo === 'mais_menos' && (
+          <div style={{ minWidth: 80 }}>
+            <label style={{ fontSize: 12, color: '#B0BEC5', display: 'block', marginBottom: 4 }}>Linha</label>
+            <input className="input-golbet" type="number" step="0.5" value={form.linha} onChange={e => setForm({ ...form, linha: e.target.value })} style={{ width: 70 }} />
+          </div>
+        )}
+        <button className="btn-amarelo" type="submit" style={{ padding: '10px 20px' }}>Criar Mercado</button>
+      </form>
+
+      {/* Lista */}
+      {mercados.map(m => (
+        <div key={m.id} className="card-golbet" style={{ padding: 14, marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{TIPOS[m.tipo]}{m.tipo === 'mais_menos' ? ` (${m.linha})` : ''}</span>
+              <span style={{ fontSize: 12, color: '#B0BEC5', marginLeft: 8 }}>{m.flag_a} {m.time_a} vs {m.time_b} {m.flag_b}</span>
+            </div>
+            <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: m.status === 'aberto' ? 'rgba(0,194,100,0.15)' : 'rgba(255,255,255,0.1)', color: m.status === 'aberto' ? '#00C264' : '#B0BEC5' }}>
+              {m.status}
+            </span>
+          </div>
+
+          <div style={{ fontSize: 12, color: '#B0BEC5', marginBottom: 6 }}>
+            Pote: <strong style={{ color: '#FFD000' }}>R$ {Number(m.pote_total).toFixed(2)}</strong> · {m.apostas?.length || 0} apostas
+          </div>
+
+          {m.apostas?.length > 0 && (
+            <div style={{ fontSize: 11, color: '#B0BEC5', marginBottom: 8, maxHeight: 100, overflowY: 'auto' }}>
+              {m.apostas.map(a => (
+                <div key={a.id} style={{ padding: '2px 0' }}>
+                  {a.nome}: {OPC_LABEL[a.opcao_escolhida]} · R$ {Number(a.valor).toFixed(2)}
+                  {a.status === 'ganhou' && <span style={{ color: '#00C264' }}> ✅ R$ {Number(a.premio).toFixed(2)}</span>}
+                  {a.status === 'perdeu' && <span style={{ color: '#E53935' }}> ❌</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {m.status === 'aberto' && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <select className="input-golbet" style={{ flex: 1, minWidth: 100 }} value={finRes[m.id] || ''} onChange={e => setFinRes(prev => ({ ...prev, [m.id]: e.target.value }))}>
+                <option value="">Resultado...</option>
+                {(OPC[m.tipo] || []).map(o => <option key={o} value={o}>{OPC_LABEL[o]}</option>)}
+              </select>
+              <button className="btn-amarelo" style={{ padding: '8px 14px', fontSize: 12 }} onClick={() => finalizar(m.id)} disabled={loading[m.id]}>
+                {loading[m.id] ? '...' : '🏆 Finalizar'}
+              </button>
+              <button onClick={() => excluir(m.id)} style={{ background: 'none', border: '1px solid #E53935', color: '#E53935', borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontSize: 11 }}>
+                Excluir
+              </button>
+            </div>
+          )}
+
+          {m.resultado && (
+            <div style={{ fontSize: 12, color: '#00C264', fontWeight: 600 }}>Resultado: {OPC_LABEL[m.resultado]} · Taxa: R$ {Number(m.taxa_casa).toFixed(2)}</div>
+          )}
+        </div>
+      ))}
+      {mercados.length === 0 && <div style={{ color: '#B0BEC5', textAlign: 'center', padding: 20 }}>Nenhum mercado extra criado.</div>}
+    </div>
+  );
+}
+
 // ─── Admin principal ──────────────────────────────────────────────────────────
 export default function Admin() {
   const [logado, setLogado] = useState(() => !!localStorage.getItem('golbet_admin'));
@@ -1174,7 +1352,7 @@ export default function Admin() {
 
   if (!logado) return <AdminLogin onLogin={() => setLogado(true)} />;
 
-  const COMP = { dashboard: Dashboard, depositos: GestaoDepositos, saques: GestaoSaques, jogos: GestaoJogos, longoplazo: GestaoLongoPrazo, apostadores: GestaoApostadores };
+  const COMP = { dashboard: Dashboard, financeiro: Financeiro, depositos: GestaoDepositos, saques: GestaoSaques, jogos: GestaoJogos, extras: GestaoExtras, longoplazo: GestaoLongoPrazo, apostadores: GestaoApostadores };
   const Comp = COMP[aba];
 
   return (

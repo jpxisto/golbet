@@ -5,7 +5,7 @@ const { run, get, all } = require('../database');
 router.post('/', async (req, res) => {
   const { apostador_id, valor, comprovante_info } = req.body;
   if (!apostador_id || !valor) return res.status(400).json({ erro: 'Dados inválidos' });
-  if (valor < 10) return res.status(400).json({ erro: 'Valor mínimo: R$ 10,00' });
+  if (valor < 20) return res.status(400).json({ erro: 'Valor mínimo: R$ 20,00' });
 
   const apostador = await get('SELECT id FROM apostadores WHERE id = ?', [apostador_id]);
   if (!apostador) return res.status(404).json({ erro: 'Apostador não encontrado' });

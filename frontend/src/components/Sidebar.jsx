@@ -1,13 +1,15 @@
 import { NavLink } from 'react-router-dom';
-import { Trophy, BookOpen, FileText, PlusCircle, MinusCircle, ShieldCheck, X, Clock } from 'lucide-react';
+import { Trophy, BookOpen, FileText, PlusCircle, MinusCircle, ShieldCheck, X, Clock, Medal, HelpCircle } from 'lucide-react';
 
 const links = [
   { to: '/', icon: <Trophy size={17} />, label: 'Jogos' },
   { to: '/longo-prazo', icon: <Clock size={17} />, label: 'Longo Prazo' },
+  { to: '/ranking', icon: <Medal size={17} />, label: 'Ranking' },
   { to: '/palpites', icon: <BookOpen size={17} />, label: 'Meus Palpites' },
   { to: '/extrato', icon: <FileText size={17} />, label: 'Extrato' },
   { to: '/depositar', icon: <PlusCircle size={17} />, label: 'Depositar' },
   { to: '/sacar', icon: <MinusCircle size={17} />, label: 'Sacar' },
+  { to: '/regras', icon: <HelpCircle size={17} />, label: 'Regras' },
 ];
 
 export default function Sidebar({ open, onClose, isMobile }) {

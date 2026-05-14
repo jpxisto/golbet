@@ -238,6 +238,17 @@ router.patch('/jogos/:id/finalizar', authAdmin, async (req, res) => {
     sheets.syncAposta({ ...aposta, status, premio }, ap?.nome || '', jogoDesc);
   }
 
+  // Notificações para apostadores
+  for (const aposta of apostas) {
+    const ganhou = aposta.resultado === resultado;
+    const premio = ganhou && totalVencedor > 0 ? (aposta.valor / totalVencedor) * potePremios : 0;
+    const msg = ganhou
+      ? `🎉 Você ganhou R$ ${premio.toFixed(2)} no jogo ${jogoDesc}!`
+      : `😔 Você não acertou o resultado do jogo ${jogoDesc}.`;
+    await run('INSERT INTO notificacoes (apostador_id, mensagem, tipo) VALUES (?, ?, ?)',
+      [aposta.apostador_id, msg, ganhou ? 'vitoria' : 'derrota']);
+  }
+
   res.json({ sucesso: true });
 });
 
@@ -471,6 +482,35 @@ router.delete('/longo-prazo/mercados/:id', authAdmin, async (req, res) => {
     res.json({ sucesso: true });
   } catch (e) {
     res.status(500).json({ erro: 'Erro interno' });
+  }
+});
+
+// ─── Dashboard Financeiro ─────────────────────────────────────────────────────
+router.get('/financeiro', authAdmin, async (req, res) => {
+  try {
+    const totalDepositado = await get("SELECT COALESCE(SUM(valor), 0) as v FROM depositos WHERE status = 'aprovado'");
+    const totalSacado = await get("SELECT COALESCE(SUM(valor), 0) as v FROM saques WHERE status = 'pago'");
+    const lucroCasa = await get("SELECT COALESCE(SUM(valor), 0) as v FROM lucro_casa");
+    const totalApostado = await get("SELECT COALESCE(SUM(total_apostado), 0) as v FROM apostadores");
+    const totalGanho = await get("SELECT COALESCE(SUM(total_ganho), 0) as v FROM apostadores");
+    const saldoTotal = await get("SELECT COALESCE(SUM(saldo), 0) as v FROM apostadores");
+    const totalApostadores = await get("SELECT COUNT(*) as v FROM apostadores");
+    const apostasAtivas = await get("SELECT COALESCE(SUM(valor), 0) as v FROM apostas WHERE status = 'pendente'");
+    const saquesPendentes = await get("SELECT COALESCE(SUM(valor), 0) as v FROM saques WHERE status = 'pendente'");
+
+    res.json({
+      totalDepositado: totalDepositado.v,
+      totalSacado: totalSacado.v,
+      lucroCasa: lucroCasa.v,
+      totalApostado: totalApostado.v,
+      totalGanho: totalGanho.v,
+      saldoTotal: saldoTotal.v,
+      totalApostadores: totalApostadores.v,
+      apostasAtivas: apostasAtivas.v,
+      saquesPendentes: saquesPendentes.v,
+    });
+  } catch (e) {
+    res.status(500).json({ erro: 'Erro ao carregar financeiro' });
   }
 });
 

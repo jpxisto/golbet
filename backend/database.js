@@ -217,6 +217,41 @@ async function initDB() {
     UNIQUE(mercado_id, apostador_id)
   )`);
 
+  // === MERCADOS EXTRAS (ambos marcam, mais/menos gols, pênaltis) ===
+  await run(`CREATE TABLE IF NOT EXISTS mercados_extras (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jogo_id INTEGER NOT NULL REFERENCES jogos(id),
+    tipo TEXT NOT NULL,
+    linha REAL DEFAULT 2.5,
+    status TEXT NOT NULL DEFAULT 'aberto',
+    resultado TEXT DEFAULT NULL,
+    pote_total REAL DEFAULT 0,
+    taxa_casa REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS apostas_extras (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mercado_id INTEGER NOT NULL REFERENCES mercados_extras(id),
+    apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+    opcao_escolhida TEXT NOT NULL,
+    valor REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    premio REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mercado_id, apostador_id)
+  )`);
+
+  // === NOTIFICAÇÕES ===
+  await run(`CREATE TABLE IF NOT EXISTS notificacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+    mensagem TEXT NOT NULL,
+    tipo TEXT DEFAULT 'info',
+    lida INTEGER DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await seedJogos();
 }
 

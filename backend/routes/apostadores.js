@@ -61,6 +61,53 @@ router.post('/login', async (req, res) => {
   });
 });
 
+// ─── Ranking ──────────────────────────────────────────────────────────────────
+router.get('/ranking', async (req, res) => {
+  try {
+    const ranking = await all(`
+      SELECT
+        ap.id, ap.nome,
+        (SELECT COUNT(*) FROM apostas WHERE apostador_id = ap.id AND status = 'ganhou') +
+        (SELECT COUNT(*) FROM apostas_extras WHERE apostador_id = ap.id AND status = 'ganhou') +
+        (SELECT COUNT(*) FROM apostas_longo_prazo WHERE apostador_id = ap.id AND status = 'ganhou') +
+        (SELECT COUNT(*) FROM apostas_artilheiros WHERE apostador_id = ap.id AND status = 'ganhou') as vitorias,
+        (SELECT COALESCE(SUM(premio), 0) FROM apostas WHERE apostador_id = ap.id AND status = 'ganhou') +
+        (SELECT COALESCE(SUM(premio), 0) FROM apostas_extras WHERE apostador_id = ap.id AND status = 'ganhou') +
+        (SELECT COALESCE(SUM(premio), 0) FROM apostas_longo_prazo WHERE apostador_id = ap.id AND status = 'ganhou') +
+        (SELECT COALESCE(SUM(premio), 0) FROM apostas_artilheiros WHERE apostador_id = ap.id AND status = 'ganhou') as total_premio,
+        (SELECT COUNT(*) FROM apostas WHERE apostador_id = ap.id) +
+        (SELECT COUNT(*) FROM apostas_extras WHERE apostador_id = ap.id) +
+        (SELECT COUNT(*) FROM apostas_longo_prazo WHERE apostador_id = ap.id) +
+        (SELECT COUNT(*) FROM apostas_artilheiros WHERE apostador_id = ap.id) as total_apostas
+      FROM apostadores ap
+      HAVING total_apostas > 0
+      ORDER BY vitorias DESC, total_premio DESC
+    `);
+    const result = ranking.map((r, i) => ({
+      posicao: i + 1, nome: r.nome, pontos: r.vitorias * 3,
+      vitorias: r.vitorias, total_apostas: r.total_apostas,
+      total_premio: r.total_premio,
+      taxa_acerto: r.total_apostas > 0 ? Math.round((r.vitorias / r.total_apostas) * 100) : 0,
+    }));
+    res.json(result);
+  } catch (e) { res.status(500).json({ erro: 'Erro ao carregar ranking' }); }
+});
+
+// ─── Notificações ─────────────────────────────────────────────────────────────
+router.get('/:id/notificacoes', async (req, res) => {
+  try {
+    const notifs = await all('SELECT * FROM notificacoes WHERE apostador_id = ? ORDER BY criado_em DESC LIMIT 20', [req.params.id]);
+    res.json(notifs);
+  } catch (e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
+router.patch('/:id/notificacoes/ler', async (req, res) => {
+  try {
+    await run('UPDATE notificacoes SET lida = 1 WHERE apostador_id = ?', [req.params.id]);
+    res.json({ sucesso: true });
+  } catch (e) { res.status(500).json({ erro: 'Erro' }); }
+});
+
 // ─── Saldo ────────────────────────────────────────────────────────────────────
 router.get('/:id/saldo', async (req, res) => {
   const row = await get('SELECT saldo FROM apostadores WHERE id = ?', [req.params.id]);

@@ -13,6 +13,8 @@ import LongoPrazo from './pages/LongoPrazo';
 import Extrato from './pages/Extrato';
 import Deposito from './pages/Deposito';
 import Saque from './pages/Saque';
+import Ranking from './pages/Ranking';
+import Regras from './pages/Regras';
 import Admin from './pages/Admin';
 
 function useIsMobile() {
@@ -73,6 +75,8 @@ function AppShell() {
             <Route path="/extrato" element={<Extrato />} />
             <Route path="/depositar" element={<Deposito />} />
             <Route path="/sacar" element={<Saque />} />
+            <Route path="/ranking" element={<Ranking />} />
+            <Route path="/regras" element={<Regras />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/cadastro" element={<Navigate to="/" replace />} />

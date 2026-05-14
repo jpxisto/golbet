@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { Trophy, Clock, BookOpen, FileText, Wallet } from 'lucide-react';
+import { Trophy, Clock, BookOpen, Medal, Wallet } from 'lucide-react';
 
 const TABS = [
   { to: '/',            icon: Trophy,   label: 'Jogos'      },
   { to: '/longo-prazo', icon: Clock,    label: 'Longo Prazo'},
+  { to: '/ranking',     icon: Medal,    label: 'Ranking'    },
   { to: '/palpites',    icon: BookOpen, label: 'Palpites'   },
-  { to: '/extrato',     icon: FileText, label: 'Extrato'    },
   { to: '/depositar',   icon: Wallet,   label: 'Carteira'   },
 ];
 
