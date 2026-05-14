@@ -228,7 +228,6 @@ function MercadosExtras({ jogo, usuario, onAposta }) {
               {m.opcoes.map(opc => {
                 const selected = m.minhaAposta?.opcao_escolhida === opc;
                 const vencedor = m.resultado === opc;
-                const total = m.totais?.[opc] || 0;
                 return (
                   <button key={opc}
                     disabled={!aberto || !usuario}
@@ -242,11 +241,18 @@ function MercadosExtras({ jogo, usuario, onAposta }) {
                     }}
                   >
                     {vencedor ? '✅ ' : selected ? '✓ ' : ''}{OPC_LABELS[opc]}
-                    {total > 0 && <span style={{ display: 'block', fontSize: 9, opacity: 0.6, marginTop: 2 }}>R$ {total.toFixed(0)}</span>}
                   </button>
                 );
               })}
             </div>
+            {(() => {
+              const poteTotal = Object.values(m.totais || {}).reduce((s, v) => s + v, 0);
+              return poteTotal > 0 ? (
+                <div style={{ fontSize: 10, color: 'var(--texto-muted)', marginTop: 4, textAlign: 'right' }}>
+                  Pote: <strong style={{ color: 'rgba(255,255,255,0.6)' }}>R$ {poteTotal.toFixed(2)}</strong>
+                </div>
+              ) : null;
+            })()}
             {m.minhaAposta && (
               <div style={{ fontSize: 10, color: 'rgba(255,208,0,0.8)', marginTop: 4 }}>
                 Sua aposta: <strong>{OPC_LABELS[m.minhaAposta.opcao_escolhida]}</strong> · R$ {Number(m.minhaAposta.valor).toFixed(2)}

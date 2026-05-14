@@ -58,7 +58,7 @@ export default function Saque() {
             <label style={{ fontSize: 13, color: '#B0BEC5', display: 'block', marginBottom: 6 }}>Valor do saque (mínimo R$ 10,00)</label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#B0BEC5' }}>R$</span>
-              <input className="input-golbet" style={{ paddingLeft: 36 }} type="number" min={10} max={saldo} step={1}
+              <input className="input-golbet" style={{ paddingLeft: 36 }} type="number" min={10} max={saldo} step={0.01}
                 value={form.valor} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00" required />
             </div>
           </div>
