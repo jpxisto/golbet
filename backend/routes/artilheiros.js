@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { run, get, all, transaction } = require('../database');
+const sheets = require('../sheets');
 
 const ADMIN_SENHA = process.env.ADMIN_SENHA || 'rolemberg2025';
 
@@ -136,6 +137,19 @@ router.patch('/admin/:id/finalizar', authAdmin, async (req, res) => {
     }
 
     await transaction(ops);
+
+    // Sheets sync
+    const jogo = await get('SELECT * FROM jogos WHERE id = ?', [mercado.jogo_id]);
+    const jogoDesc = jogo ? `${jogo.flag_a} ${jogo.time_a} vs ${jogo.time_b} ${jogo.flag_b}` : '';
+    sheets.syncLucroCasa(mercado.jogo_id, `Artilheiro — ${jogoDesc}`, taxaCasa);
+    sheets.logAdmin('Artilheiro finalizado', jogoDesc, `Taxa: R$ ${taxaCasa.toFixed(2)}`);
+    for (const a of apostas) {
+      const ap = await get('SELECT nome FROM apostadores WHERE id = ?', [a.apostador_id]);
+      const status = a.opcao_escolhida === resultado ? 'ganhou' : 'perdeu';
+      const premio = vencedores.find(v => v.id === a.id) && totalVencedores > 0 ? (a.valor / totalVencedores) * potePremios : 0;
+      sheets.syncApostaArtilheiro({ ...a, status, premio }, ap?.nome || '', jogoDesc, jogo, mercado);
+    }
+
     res.json({ sucesso: true });
   } catch (e) {
     res.status(500).json({ erro: 'Erro ao finalizar: ' + e.message });
@@ -278,6 +292,17 @@ router.post('/apostar', async (req, res) => {
     }
 
     const atualizado = await get('SELECT saldo FROM apostadores WHERE id = ?', [apostador_id]);
+
+    // Sheets sync
+    const jogoInfo = await get('SELECT * FROM jogos WHERE id = ?', [jogo_id]);
+    const mercadoAtual = await get('SELECT * FROM mercados_artilheiros WHERE jogo_id = ?', [jogo_id]);
+    const apostaAtual = await get('SELECT * FROM apostas_artilheiros WHERE mercado_id = ? AND apostador_id = ?', [mercadoAtual?.id, apostador_id]);
+    const apInfo = await get('SELECT nome FROM apostadores WHERE id = ?', [apostador_id]);
+    if (jogoInfo && apostaAtual && apInfo) {
+      const jogoDesc = `${jogoInfo.flag_a} ${jogoInfo.time_a} vs ${jogoInfo.time_b} ${jogoInfo.flag_b}`;
+      sheets.syncApostaArtilheiro(apostaAtual, apInfo.nome, jogoDesc, jogoInfo, mercadoAtual);
+    }
+
     res.json({ sucesso: true, saldo: atualizado.saldo });
   } catch (e) {
     res.status(500).json({ erro: 'Erro interno: ' + e.message });

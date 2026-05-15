@@ -94,7 +94,7 @@ router.post('/apostar', async (req, res) => {
     const apostaInfo = await get('SELECT * FROM apostas_extras WHERE mercado_id = ? AND apostador_id = ?', [mercado_id, apostador_id]);
     if (jogo && apInfo && apostaInfo) {
       const desc = `${tipoInfo.label}: ${jogo.flag_a} ${jogo.time_a} vs ${jogo.time_b} ${jogo.flag_b}`;
-      sheets.syncAposta(apostaInfo, apInfo.nome, desc);
+      sheets.syncApostaExtra(apostaInfo, apInfo.nome, desc);
     }
 
     res.json({ sucesso: true, saldo: novoSaldo.saldo });
@@ -203,6 +203,13 @@ router.post('/admin/finalizar', authAdmin, async (req, res) => {
     // Sheets sync
     sheets.syncLucroCasa(mercado.jogo_id, `${mercadoLabel} — ${jogoDesc}`, taxaCasa);
     sheets.logAdmin('Mercado extra finalizado', `${mercadoLabel} — ${jogoDesc}`, `Taxa: R$ ${taxaCasa.toFixed(2)}`);
+    for (const a of apostas) {
+      const ap = await get('SELECT nome FROM apostadores WHERE id = ?', [a.apostador_id]);
+      const status = a.opcao_escolhida === resultado ? 'ganhou' : 'perdeu';
+      const premio = vencedoras.find(v => v.id === a.id) && totalVencedores > 0 ? (a.valor / totalVencedores) * potePremios : 0;
+      const desc = `${mercadoLabel}: ${jogoDesc}`;
+      sheets.syncApostaExtra({ ...a, status, premio }, ap?.nome || '', desc);
+    }
 
     res.json({ sucesso: true, taxaCasa, potePremios, vencedoras: vencedoras.length });
   } catch (e) {

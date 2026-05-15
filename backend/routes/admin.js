@@ -242,7 +242,7 @@ router.patch('/jogos/:id/finalizar', authAdmin, async (req, res) => {
     const status = aposta.resultado === resultado ? 'ganhou' : 'perdeu';
     const premio = vencedoras.find(v => v.id === aposta.id)
       ? (aposta.valor / (totalVencedor || 1)) * potePremios : 0;
-    sheets.syncAposta({ ...aposta, status, premio }, ap?.nome || '', jogoDesc);
+    sheets.syncAposta({ ...aposta, status, premio }, ap?.nome || '', jogoDesc, jogo);
   }
 
   // Notificações para apostadores

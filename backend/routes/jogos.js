@@ -143,7 +143,7 @@ router.post('/:id/apostar', async (req, res) => {
     const apostaInfo = await get('SELECT * FROM apostas WHERE apostador_id = ? AND jogo_id = ?', [apostador_id, jogoId]);
     if (jogoInfo && apInfo && apostaInfo) {
       const jogoDesc = `${jogoInfo.flag_a} ${jogoInfo.time_a} vs ${jogoInfo.time_b} ${jogoInfo.flag_b}`;
-      sheets.syncAposta(apostaInfo, apInfo.nome, jogoDesc);
+      sheets.syncAposta(apostaInfo, apInfo.nome, jogoDesc, jogoInfo);
     }
     res.json({ sucesso: true, saldo: novoSaldo.saldo });
   } catch (e) {
