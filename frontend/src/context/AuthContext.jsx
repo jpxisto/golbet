@@ -10,6 +10,8 @@ export function AuthProvider({ children }) {
   });
   const [saldo, setSaldo] = useState(0);
   const [toasts, setToasts] = useState([]);
+  const [notificacoes, setNotificacoes] = useState([]);
+  const [notifsNaoLidas, setNotifsNaoLidas] = useState(0);
 
   const fetchSaldo = useCallback(async () => {
     if (!usuario?.id) return;
@@ -19,11 +21,38 @@ export function AuthProvider({ children }) {
     } catch {}
   }, [usuario?.id]);
 
+  const fetchNotificacoes = useCallback(async () => {
+    if (!usuario?.id) return;
+    try {
+      const { data } = await axios.get(`/api/apostadores/${usuario.id}/notificacoes`);
+      const novas = data.filter(n => !n.lida);
+      // Show toast for new wins
+      if (novas.length > notifsNaoLidas && notifsNaoLidas >= 0) {
+        const novissimas = novas.slice(0, novas.length - notifsNaoLidas);
+        novissimas.forEach(n => {
+          if (n.tipo === 'vitoria') addToast(n.mensagem, 'sucesso');
+        });
+      }
+      setNotificacoes(data);
+      setNotifsNaoLidas(novas.length);
+    } catch {}
+  }, [usuario?.id, notifsNaoLidas]);
+
+  const marcarNotificacoesLidas = useCallback(async () => {
+    if (!usuario?.id) return;
+    try {
+      await axios.patch(`/api/apostadores/${usuario.id}/notificacoes/ler`);
+      setNotifsNaoLidas(0);
+      setNotificacoes(prev => prev.map(n => ({ ...n, lida: 1 })));
+    } catch {}
+  }, [usuario?.id]);
+
   useEffect(() => {
     fetchSaldo();
-    const interval = setInterval(fetchSaldo, 10000);
+    fetchNotificacoes();
+    const interval = setInterval(() => { fetchSaldo(); fetchNotificacoes(); }, 15000);
     return () => clearInterval(interval);
-  }, [fetchSaldo]);
+  }, [fetchSaldo, fetchNotificacoes]);
 
   function login(userData) {
     setUsuario(userData);
@@ -49,7 +78,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, saldo, setSaldo, login, logout, fetchSaldo, toasts, addToast, removeToast }}>
+    <AuthContext.Provider value={{ usuario, saldo, setSaldo, login, logout, fetchSaldo, toasts, addToast, removeToast, notificacoes, notifsNaoLidas, marcarNotificacoesLidas }}>
       {children}
     </AuthContext.Provider>
   );

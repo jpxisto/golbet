@@ -3,80 +3,246 @@
 @tailwind utilities;
 
 :root {
-  --verde-escuro: #00563F;
-  --verde-medio: #006B4E;
-  --verde-claro: #00874F;
-  --amarelo: #F5D020;
-  --amarelo-hover: #E6C000;
-  --branco: #FFFFFF;
-  --cinza-claro: #B0BEC5;
-  --fundo-card: #004A35;
-  --fundo-page: #003D2B;
-  --vermelho: #E53935;
-  --badge-aberto: #43A047;
-  --badge-fechado: #757575;
+  --bg-deep:        #001612;
+  --bg-primary:     #002018;
+  --bg-card:        #002B1C;
+  --bg-card-2:      #003522;
+  --bg-surface:     #003D28;
+  --verde-accent:   #00C264;
+  --verde-border:   rgba(0, 194, 100, 0.15);
+  --verde-muted:    rgba(0, 194, 100, 0.08);
+  --amarelo:        #FFD000;
+  --amarelo-dark:   #E6BB00;
+  --amarelo-glow:   rgba(255, 208, 0, 0.25);
+  --branco:         #FFFFFF;
+  --texto-muted:    #5C7A6A;
+  --texto-sec:      #8FA89A;
+  --vermelho:       #FF4545;
+  --laranja:        #FF8C00;
+  --azul:           #3B82F6;
+  --shadow-sm:      0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md:      0 4px 20px rgba(0,0,0,0.45);
+  --shadow-lg:      0 8px 40px rgba(0,0,0,0.6);
+  --shadow-glow:    0 0 24px rgba(0, 194, 100, 0.12);
+  --shadow-amarelo: 0 4px 16px rgba(255, 208, 0, 0.3);
+  --radius-sm:      6px;
+  --radius-md:      10px;
+  --radius-lg:      14px;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: 'Inter', sans-serif;
-  background-color: var(--fundo-page);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-primary);
   color: var(--branco);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--verde-escuro); }
-::-webkit-scrollbar-thumb { background: var(--verde-claro); border-radius: 3px; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--bg-surface); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--verde-accent); }
 
+/* ─── Logo Text ─── */
+.logo-gol  { color: #fff; font-style: italic; font-weight: 900; letter-spacing: -0.5px; }
+.logo-bet  { color: var(--amarelo); font-style: italic; font-weight: 900; letter-spacing: -0.5px; }
+
+/* ─── Buttons ─── */
 .btn-amarelo {
   background: var(--amarelo);
   color: #000;
-  font-weight: 700;
+  font-weight: 800;
   border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  padding: 11px 22px;
   cursor: pointer;
-  transition: background 0.15s;
-  font-family: 'Inter', sans-serif;
+  transition: all 0.18s;
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0.4px;
 }
-.btn-amarelo:hover:not(:disabled) { background: var(--amarelo-hover); }
-.btn-amarelo:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-amarelo:hover:not(:disabled) {
+  background: var(--amarelo-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-amarelo);
+}
+.btn-amarelo:active:not(:disabled) { transform: scale(0.95); box-shadow: none; }
+.btn-amarelo:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
 
 .btn-verde {
-  background: var(--verde-claro);
+  background: var(--verde-accent);
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  padding: 11px 22px;
   cursor: pointer;
-  transition: background 0.15s;
-  font-family: 'Inter', sans-serif;
+  transition: all 0.18s;
+  font-family: inherit;
+  font-size: 14px;
 }
-.btn-verde:hover:not(:disabled) { background: var(--verde-medio); }
-.btn-verde:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-verde:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.btn-verde:active:not(:disabled) { transform: scale(0.95); }
+.btn-verde:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.btn-ghost {
+  background: transparent;
+  color: var(--texto-sec);
+  font-weight: 600;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-md);
+  padding: 11px 22px;
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: inherit;
+  font-size: 14px;
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,0.28); color: #fff; }
+
+/* ─── Inputs ─── */
 .input-golbet {
-  background: var(--verde-escuro);
-  border: 1px solid var(--verde-claro);
-  border-radius: 6px;
+  background: var(--bg-deep);
+  border: 1.5px solid rgba(0, 194, 100, 0.18);
+  border-radius: var(--radius-md);
   color: #fff;
-  padding: 10px 14px;
-  font-family: 'Inter', sans-serif;
+  padding: 12px 14px;
+  font-family: inherit;
   font-size: 14px;
   width: 100%;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.18s, box-shadow 0.18s;
 }
-.input-golbet:focus { border-color: var(--amarelo); }
-.input-golbet::placeholder { color: var(--cinza-claro); }
+.input-golbet:focus {
+  border-color: var(--amarelo);
+  box-shadow: 0 0 0 3px rgba(255, 208, 0, 0.1);
+}
+.input-golbet::placeholder { color: var(--texto-muted); }
 
+/* ─── Cards ─── */
 .card-golbet {
-  background: var(--fundo-card);
-  border-radius: 10px;
-  border: 1px solid rgba(0,135,79,0.3);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--verde-border);
   padding: 16px;
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Badges ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.badge-aberto    { background: rgba(0,194,100,0.12);  color: #00C264; border: 1px solid rgba(0,194,100,0.25); }
+.badge-fechado   { background: rgba(100,100,100,0.12); color: #888;    border: 1px solid rgba(100,100,100,0.25); }
+.badge-encerrado { background: rgba(255,140,0,0.12);  color: #FF8C00; border: 1px solid rgba(255,140,0,0.25); }
+.badge-finalizado{ background: rgba(59,130,246,0.12); color: #60A5FA; border: 1px solid rgba(59,130,246,0.25); }
+
+/* ─── Divider ─── */
+.divider { height: 1px; background: var(--verde-border); margin: 0; }
+
+/* ─── Pulse animation for ABERTO ─── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.pulse-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--verde-accent);
+  animation: pulse-dot 1.4s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* ─── Drawer animation ─── */
+@keyframes drawerIn { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+@keyframes fadeIn   { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideUp  { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: translateY(0) } }
+
+/* ─── Card entrance ─── */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+.card-entrada {
+  animation: cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Odd button hover ─── */
+.odd-btn:not(:disabled):not(.odd-btn-selected):hover {
+  border-color: rgba(0, 194, 100, 0.45) !important;
+  background: linear-gradient(135deg, rgba(0,194,100,0.08) 0%, rgba(0,194,100,0.04) 100%) !important;
+  color: rgba(255,255,255,0.9) !important;
+}
+
+/* ─── Mobile / touch ─── */
+button, a, [role="button"] {
+  touch-action: manipulation;   /* elimina o delay de 300ms no iOS */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Padding seguro para iPhone (safe area inset) */
+.safe-bottom {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+/* Bottom nav espaçador de conteúdo */
+.with-bottom-nav {
+  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+}
+
+/* Scroll suave em listas */
+main, .scroll-y {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ─── Spinner (evita <style> inline em render) ─── */
+@keyframes spin { to { transform: rotate(360deg) } }
+.spinner {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 3px solid rgba(0,194,100,0.18);
+  border-top-color: var(--verde-accent);
+  animation: spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ─── Focus ring global acessível ─── */
+:focus-visible {
+  outline: 2px solid var(--amarelo);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Sidebar nav pill (sem side-stripe) ─── */
+.nav-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; margin: 2px 8px;
+  border-radius: var(--radius-md);
+  transition: background 0.15s, color 0.15s;
+  text-decoration: none;
+  font-size: 13.5px; font-weight: 500;
+  color: rgba(255,255,255,0.65);
+}
+.nav-pill:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.9); }
+.nav-pill.active { background: rgba(255,208,0,0.1); color: var(--amarelo); font-weight: 700; }
+
+/* ─── Reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

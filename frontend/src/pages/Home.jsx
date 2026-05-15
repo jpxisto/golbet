@@ -2,15 +2,32 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import JogoCard from '../components/JogoCard';
 import { useAuth } from '../context/AuthContext';
-import { Trophy } from 'lucide-react';
+import { Trophy, Zap, Lock } from 'lucide-react';
 
-const FILTROS = ['Todos', 'Abertos', 'Encerrados', 'Finalizados', 'Fechados'];
+function useIsMobile() {
+  const [m, setM] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < 640);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return m;
+}
+
+const FILTROS = [
+  { label: 'Todos', val: null },
+  { label: '🟢 Abertos', val: 'aberto' },
+  { label: '🔒 Encerrados', val: 'encerrado' },
+  { label: '✅ Finalizados', val: 'finalizado' },
+  { label: '⚪ Fechados', val: 'fechado' },
+];
 
 export default function Home() {
   const { usuario } = useAuth();
+  const isMobile = useIsMobile();
   const [jogos, setJogos] = useState([]);
   const [minhasApostas, setMinhasApostas] = useState([]);
-  const [filtro, setFiltro] = useState('Todos');
+  const [filtro, setFiltro] = useState(null);
   const [loading, setLoading] = useState(true);
 
   async function fetchData() {
@@ -27,50 +44,117 @@ export default function Home() {
 
   useEffect(() => { fetchData(); }, [usuario?.id]);
 
-  const filtroMap = { Todos: null, Abertos: 'aberto', Encerrados: 'encerrado', Finalizados: 'finalizado', Fechados: 'fechado' };
-  const jogosFiltrados = filtro === 'Todos' ? jogos : jogos.filter(j => j.status === filtroMap[filtro]);
+  // Atualiza a lista de jogos a cada 45s — detecta quando o admin abre/fecha um jogo
+  useEffect(() => {
+    const iv = setInterval(fetchData, 45000);
+    return () => clearInterval(iv);
+  }, [usuario?.id]);
 
+  const jogosFiltrados = filtro ? jogos.filter(j => j.status === filtro) : jogos;
   const apostaMap = {};
   minhasApostas.forEach(a => { apostaMap[a.jogo_id] = a; });
+  const abertos = jogos.filter(j => j.status === 'aberto').length;
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#B0BEC5' }}>Carregando jogos...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column', gap: 12 }} role="status" aria-label="Carregando jogos">
+      <div className="spinner" />
+      <span style={{ color: 'var(--texto-muted)', fontSize: 13 }}>Carregando jogos...</span>
+    </div>
+  );
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      {/* Título */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <Trophy size={22} style={{ color: '#F5D020' }} />
-        <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Copa do Mundo Rolemberg</h1>
-          <p style={{ margin: 0, fontSize: 13, color: '#B0BEC5' }}>{jogos.filter(j => j.status === 'aberto').length} jogos com apostas abertas</p>
+    <div style={{ maxWidth: 780, margin: '0 auto' }}>
+
+      {/* Hero banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #002B1C 0%, #001F14 100%)',
+        borderRadius: 14, border: '1px solid rgba(0,194,100,0.15)',
+        padding: isMobile ? '14px 16px' : '18px 20px', marginBottom: 18,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+        position: 'relative', overflow: 'hidden',
+        gap: 12,
+      }}>
+        <div style={{ position: 'absolute', right: -20, top: -20, width: 140, height: 140, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,208,0,0.07) 0%, transparent 70%)' }} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <Trophy size={isMobile ? 17 : 20} style={{ color: '#FFD000', flexShrink: 0 }} />
+            <h1 style={{ margin: 0, fontSize: isMobile ? 16 : 20, fontWeight: 900, letterSpacing: '-0.4px', lineHeight: 1.2, whiteSpace: isMobile ? 'normal' : 'nowrap' }}>
+              GolBet
+            </h1>
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--texto-muted)', paddingLeft: isMobile ? 0 : 25 }}>
+            {jogos.length} jogos no total
+          </p>
         </div>
+        {abertos > 0 && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            background: 'rgba(0,194,100,0.12)', border: '1px solid rgba(0,194,100,0.25)',
+            borderRadius: 10, padding: '8px 14px', flexShrink: 0,
+          }}>
+            <span className="pulse-dot" style={{ marginBottom: 4 }} />
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#00C264', lineHeight: 1 }}>{abertos}</span>
+            <span style={{ fontSize: 10, color: 'var(--texto-muted)', fontWeight: 600, marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {abertos === 1 ? 'Aberto' : 'Abertos'}
+            </span>
+          </div>
+        )}
       </div>
 
+      {/* Banner login */}
+      {!usuario && (
+        <div style={{
+          marginBottom: 18, padding: '12px 16px',
+          background: 'linear-gradient(135deg, rgba(255,208,0,0.08) 0%, rgba(255,208,0,0.04) 100%)',
+          border: '1px solid rgba(255,208,0,0.2)',
+          borderRadius: 10, fontSize: 13,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <Zap size={16} style={{ color: '#FFD000', flexShrink: 0 }} />
+          <span style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <a href="/login" style={{ color: '#FFD000', fontWeight: 700, textDecoration: 'none' }}>Faça login</a>
+            {' '}para apostar nos jogos e ganhar prêmios
+          </span>
+        </div>
+      )}
+
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
         {FILTROS.map(f => (
-          <button key={f} onClick={() => setFiltro(f)} style={{
-            padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
-            background: filtro === f ? '#F5D020' : 'rgba(0,135,79,0.2)',
-            color: filtro === f ? '#000' : '#fff',
-            border: filtro === f ? 'none' : '1px solid rgba(0,135,79,0.4)',
+          <button key={f.label} onClick={() => setFiltro(f.val)} style={{
+            padding: '7px 16px', borderRadius: 20, fontSize: 12,
+            fontWeight: filtro === f.val ? 800 : 600,
+            cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            background: filtro === f.val ? '#FFD000' : 'rgba(0,0,0,0.3)',
+            color: filtro === f.val ? '#000' : 'rgba(255,255,255,0.55)',
+            border: filtro === f.val ? '1.5px solid #FFD000' : '1px solid rgba(0,194,100,0.15)',
+            boxShadow: filtro === f.val ? '0 2px 14px rgba(255,208,0,0.35)' : 'none',
+            transform: filtro === f.val ? 'translateY(-1px)' : 'none',
+            letterSpacing: filtro === f.val ? '-0.2px' : '0',
           }}>
-            {f}
+            {f.label}
           </button>
         ))}
       </div>
 
-      {!usuario && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(245,208,32,0.1)', border: '1px solid rgba(245,208,32,0.3)', borderRadius: 8, fontSize: 13, color: '#F5D020' }}>
-          ⚡ <a href="/login" style={{ color: '#F5D020', fontWeight: 700 }}>Faça login</a> para apostar nos jogos
-        </div>
-      )}
-
+      {/* Lista de jogos */}
       {jogosFiltrados.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 40, color: '#B0BEC5' }}>Nenhum jogo nesta categoria.</div>
+        <div style={{
+          textAlign: 'center', padding: '48px 20px',
+          color: 'var(--texto-muted)',
+          background: 'rgba(0,0,0,0.2)', borderRadius: 12,
+          border: '1px solid rgba(0,194,100,0.08)',
+        }}>
+          <Lock size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
+          <p style={{ margin: 0, fontSize: 14 }}>Nenhum jogo nesta categoria</p>
+        </div>
       ) : (
-        jogosFiltrados.map(jogo => (
-          <JogoCard key={jogo.id} jogo={jogo} minhaAposta={apostaMap[jogo.id]} />
+        jogosFiltrados.map((jogo, i) => (
+          <div key={jogo.id} className="card-entrada" style={{ animationDelay: `${Math.min(i, 8) * 55}ms` }}>
+            <JogoCard jogo={jogo} minhaAposta={apostaMap[jogo.id]} />
+          </div>
         ))
       )}
     </div>

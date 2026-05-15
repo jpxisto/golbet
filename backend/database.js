@@ -43,6 +43,12 @@ async function transaction(ops) {
 async function initDB() {
   await run('PRAGMA journal_mode = WAL');
   await run('PRAGMA foreign_keys = ON');
+  // Evita SQLITE_BUSY imediato sob carga concorrente: espera até 8s antes de falhar
+  await run('PRAGMA busy_timeout = 8000');
+  // WAL + NORMAL dá boa durabilidade sem o custo de FULL
+  await run('PRAGMA synchronous = NORMAL');
+  // Cache maior reduz leituras de disco
+  await run('PRAGMA cache_size = -8000'); // 8MB
 
   await run(`CREATE TABLE IF NOT EXISTS apostadores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,6 +127,129 @@ async function initDB() {
     jogo_id INTEGER REFERENCES jogos(id),
     valor REAL NOT NULL,
     registrado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // === LONGO PRAZO ===
+  // Mercados de aposta em vencedor de campeonato/torneio
+  await run(`CREATE TABLE IF NOT EXISTS mercados_longo_prazo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    opcoes TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'aberto',
+    resultado TEXT DEFAULT NULL,
+    pote_total REAL DEFAULT 0,
+    taxa_casa REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fechado_em DATETIME DEFAULT NULL
+  )`);
+
+  // Apostas em mercados de longo prazo — criada inicialmente com UNIQUE(mercado_id, apostador_id)
+  // A migração abaixo atualiza para UNIQUE(mercado_id, apostador_id, opcao_escolhida)
+  await run(`CREATE TABLE IF NOT EXISTS apostas_longo_prazo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mercado_id INTEGER NOT NULL REFERENCES mercados_longo_prazo(id),
+    apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+    opcao_escolhida TEXT NOT NULL,
+    valor REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    premio REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mercado_id, apostador_id)
+  )`);
+
+  // === MIGRAÇÃO: UNIQUE(mercado_id, apostador_id) → UNIQUE(mercado_id, apostador_id, opcao_escolhida)
+  // Necessário para permitir múltiplas apostas por usuário em opções diferentes do mesmo mercado
+  try {
+    const indexes = await all("PRAGMA index_list('apostas_longo_prazo')");
+    let hasNewConstraint = false;
+    for (const idx of indexes.filter(i => i.unique)) {
+      const info = await all(`PRAGMA index_info('${idx.name}')`);
+      if (info.some(c => c.name === 'opcao_escolhida')) { hasNewConstraint = true; break; }
+    }
+    if (!hasNewConstraint) {
+      await run(`ALTER TABLE apostas_longo_prazo RENAME TO apostas_longo_prazo_old`);
+      await run(`CREATE TABLE apostas_longo_prazo (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        mercado_id INTEGER NOT NULL REFERENCES mercados_longo_prazo(id),
+        apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+        opcao_escolhida TEXT NOT NULL,
+        valor REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pendente',
+        premio REAL DEFAULT 0,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(mercado_id, apostador_id, opcao_escolhida)
+      )`);
+      await run(`INSERT OR IGNORE INTO apostas_longo_prazo SELECT * FROM apostas_longo_prazo_old`);
+      await run(`DROP TABLE apostas_longo_prazo_old`);
+      console.log('✅ Migração apostas_longo_prazo concluída');
+    }
+  } catch (e) {
+    console.error('⚠️ Migração apostas_longo_prazo:', e.message);
+  }
+
+  // === ARTILHEIROS ===
+  // Mercado de artilheiro por jogo (quem marca mais gols)
+  await run(`CREATE TABLE IF NOT EXISTS mercados_artilheiros (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jogo_id INTEGER NOT NULL REFERENCES jogos(id),
+    jogador_a TEXT DEFAULT NULL,
+    jogador_b TEXT DEFAULT NULL,
+    status TEXT NOT NULL DEFAULT 'aberto',
+    resultado TEXT DEFAULT NULL,
+    pote_total REAL DEFAULT 0,
+    taxa_casa REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Migração: adicionar colunas jogador_a e jogador_b se ainda não existirem
+  try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_a TEXT DEFAULT NULL'); } catch {}
+  try { await run('ALTER TABLE mercados_artilheiros ADD COLUMN jogador_b TEXT DEFAULT NULL'); } catch {}
+
+  await run(`CREATE TABLE IF NOT EXISTS apostas_artilheiros (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mercado_id INTEGER NOT NULL REFERENCES mercados_artilheiros(id),
+    apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+    opcao_escolhida TEXT NOT NULL,
+    valor REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    premio REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mercado_id, apostador_id)
+  )`);
+
+  // === MERCADOS EXTRAS (ambos marcam, mais/menos gols, pênaltis) ===
+  await run(`CREATE TABLE IF NOT EXISTS mercados_extras (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jogo_id INTEGER NOT NULL REFERENCES jogos(id),
+    tipo TEXT NOT NULL,
+    linha REAL DEFAULT 2.5,
+    status TEXT NOT NULL DEFAULT 'aberto',
+    resultado TEXT DEFAULT NULL,
+    pote_total REAL DEFAULT 0,
+    taxa_casa REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await run(`CREATE TABLE IF NOT EXISTS apostas_extras (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mercado_id INTEGER NOT NULL REFERENCES mercados_extras(id),
+    apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+    opcao_escolhida TEXT NOT NULL,
+    valor REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    premio REAL DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mercado_id, apostador_id)
+  )`);
+
+  // === NOTIFICAÇÕES ===
+  await run(`CREATE TABLE IF NOT EXISTS notificacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    apostador_id INTEGER NOT NULL REFERENCES apostadores(id),
+    mensagem TEXT NOT NULL,
+    tipo TEXT DEFAULT 'info',
+    lida INTEGER DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
   await seedJogos();
