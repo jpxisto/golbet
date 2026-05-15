@@ -521,24 +521,4 @@ router.get('/financeiro', authAdmin, async (req, res) => {
   }
 });
 
-// ─── TEMP: Limpar dados de teste ─────────────────────────────────────────────
-router.post('/limpar-testes', authAdmin, async (req, res) => {
-  try {
-    const tables = await all("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
-    const nomes = tables.map(t => t.name);
-    const toClear = ['apostas','apostas_extras','apostas_longo_prazo','apostas_artilheiros','depositos','saques','notificacoes','lucro_casa'];
-    for (const tbl of toClear) {
-      if (nomes.includes(tbl)) await run(`DELETE FROM ${tbl}`);
-    }
-    await run(`UPDATE apostadores SET saldo=0, total_depositado=0, total_apostado=0, total_ganho=0, total_sacado=0`);
-    const marketTbls = ['jogos','mercados_extras','mercados_longo_prazo','mercados_artilheiros'];
-    for (const tbl of marketTbls) {
-      if (nomes.includes(tbl)) await run(`UPDATE ${tbl} SET pote_total=0`);
-    }
-    res.json({ sucesso: true, mensagem: 'Dados de teste limpos com sucesso' });
-  } catch (e) {
-    res.status(500).json({ erro: e.message });
-  }
-});
-
 module.exports = router;

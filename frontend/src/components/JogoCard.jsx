@@ -211,55 +211,79 @@ function MercadosExtras({ jogo, usuario, onAposta }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
       {mercados.map(m => {
         const aberto = m.status === 'aberto';
         const linhaLabel = m.tipo === 'mais_menos' ? ` (${m.linha})` : '';
+        const poteTotal = Object.values(m.totais || {}).reduce((s, v) => s + v, 0);
+        const labelResultado = m.resultado ? OPC_LABELS[m.resultado] : null;
         return (
           <div key={m.id} style={{
-            borderRadius: 8, border: '1px solid rgba(0,194,100,0.12)',
-            background: 'rgba(0,0,0,0.18)', padding: '8px 10px',
+            borderRadius: 10, border: '1px solid rgba(0,194,100,0.15)',
+            background: 'rgba(0,0,0,0.22)', overflow: 'hidden',
           }}>
-            <div style={{ fontSize: 10, color: 'var(--texto-muted)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {LABELS[m.tipo] || m.tipo}{linhaLabel}
-              {m.resultado && <span style={{ color: '#00C264', marginLeft: 6 }}>Resultado: {OPC_LABELS[m.resultado]}</span>}
+            {/* Cabeçalho centralizado */}
+            <div style={{
+              padding: '7px 12px',
+              borderBottom: '1px solid rgba(0,194,100,0.1)',
+              background: 'rgba(0,0,0,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <span style={{ fontSize: 10, color: 'var(--texto-sec)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {LABELS[m.tipo] || m.tipo}{linhaLabel}
+              </span>
+              {labelResultado && (
+                <span style={{ fontSize: 10, color: '#00C264', fontWeight: 700 }}>· ✅ {labelResultado}</span>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: 5 }}>
-              {m.opcoes.map(opc => {
-                const selected = m.minhaAposta?.opcao_escolhida === opc;
-                const vencedor = m.resultado === opc;
-                return (
-                  <button key={opc}
-                    disabled={!aberto || !usuario}
-                    onClick={() => aberto && usuario && onAposta(m, opc)}
-                    style={{
-                      flex: 1, padding: '8px 4px', borderRadius: 7, cursor: (!aberto || !usuario) ? 'default' : 'pointer',
-                      background: selected ? 'linear-gradient(135deg, rgba(255,208,0,0.18),rgba(255,208,0,0.08))' : vencedor ? 'rgba(0,194,100,0.12)' : 'rgba(0,0,0,0.25)',
-                      border: selected ? '2px solid rgba(255,208,0,0.5)' : vencedor ? '1px solid rgba(0,194,100,0.4)' : '1px solid rgba(0,194,100,0.12)',
-                      color: selected ? '#FFD000' : vencedor ? '#00C264' : 'rgba(255,255,255,0.7)',
-                      fontSize: 11, fontWeight: selected || vencedor ? 700 : 500, fontFamily: 'inherit', transition: 'all 0.15s',
-                    }}
-                  >
-                    {vencedor ? '✅ ' : selected ? '✓ ' : ''}{OPC_LABELS[opc]}
-                  </button>
-                );
-              })}
-            </div>
-            {(() => {
-              const poteTotal = Object.values(m.totais || {}).reduce((s, v) => s + v, 0);
-              return poteTotal > 0 ? (
-                <div style={{ fontSize: 10, color: 'var(--texto-muted)', marginTop: 4, textAlign: 'right' }}>
-                  Pote: <strong style={{ color: 'rgba(255,255,255,0.6)' }}>R$ {poteTotal.toFixed(2)}</strong>
-                </div>
-              ) : null;
-            })()}
-            {m.minhaAposta && (
-              <div style={{ fontSize: 10, color: 'rgba(255,208,0,0.8)', marginTop: 4 }}>
-                Sua aposta: <strong>{OPC_LABELS[m.minhaAposta.opcao_escolhida]}</strong> · R$ {Number(m.minhaAposta.valor).toFixed(2)}
-                {m.minhaAposta.status === 'ganhou' && <span style={{ color: '#00C264' }}> +R$ {Number(m.minhaAposta.premio).toFixed(2)} ✅</span>}
-                {m.minhaAposta.status === 'perdeu' && <span style={{ color: 'var(--vermelho)' }}> ❌</span>}
+
+            {/* Botões */}
+            <div style={{ padding: '10px 12px' }}>
+              <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+                {m.opcoes.map(opc => {
+                  const selected = m.minhaAposta?.opcao_escolhida === opc;
+                  const vencedor = m.resultado === opc;
+                  return (
+                    <button key={opc}
+                      disabled={!aberto || !usuario}
+                      onClick={() => aberto && usuario && onAposta(m, opc)}
+                      style={{
+                        flex: 1, padding: '7px 4px', borderRadius: 7,
+                        cursor: (!aberto || !usuario) ? 'default' : 'pointer',
+                        background: selected
+                          ? 'linear-gradient(135deg, rgba(255,208,0,0.18),rgba(255,208,0,0.08))'
+                          : vencedor ? 'rgba(0,194,100,0.12)' : 'rgba(0,0,0,0.25)',
+                        border: selected ? '2px solid rgba(255,208,0,0.5)' : vencedor ? '1px solid rgba(0,194,100,0.4)' : '1px solid rgba(0,194,100,0.12)',
+                        color: selected ? '#FFD000' : vencedor ? '#00C264' : 'rgba(255,255,255,0.7)',
+                        fontSize: 11, fontWeight: selected || vencedor ? 700 : 500,
+                        fontFamily: 'inherit', transition: 'all 0.15s', lineHeight: 1.3,
+                      }}
+                    >
+                      {vencedor ? '✅ ' : selected ? '✓ ' : ''}{OPC_LABELS[opc]}
+                    </button>
+                  );
+                })}
               </div>
-            )}
+
+              {/* Rodapé: "Sua aposta" à esquerda, Pote à direita */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {m.minhaAposta ? (
+                  <span style={{ fontSize: 10, color: 'rgba(255,208,0,0.8)' }}>
+                    Sua aposta: <strong>{OPC_LABELS[m.minhaAposta.opcao_escolhida]}</strong>
+                    {' · '}R$ {Number(m.minhaAposta.valor).toFixed(2)}
+                    {m.minhaAposta.status === 'ganhou' && <span style={{ color: '#00C264' }}> +R$ {Number(m.minhaAposta.premio).toFixed(2)} ✅</span>}
+                    {m.minhaAposta.status === 'perdeu' && <span style={{ color: 'var(--vermelho)' }}> ❌</span>}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 10, color: 'var(--texto-muted)' }}>
+                    {aberto ? (usuario ? 'Clique para apostar' : 'Faça login para apostar') : labelResultado ? `Resultado: ${labelResultado}` : 'Apostas encerradas'}
+                  </span>
+                )}
+                <span style={{ fontSize: 10, color: 'var(--texto-muted)', flexShrink: 0 }}>
+                  Pote: <span style={{ color: '#FFD000', fontWeight: 700 }}>R$ {poteTotal.toFixed(2)}</span>
+                </span>
+              </div>
+            </div>
           </div>
         );
       })}
