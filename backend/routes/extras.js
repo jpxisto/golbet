@@ -163,15 +163,20 @@ router.post('/admin/finalizar', authAdmin, async (req, res) => {
     const apostas = await all('SELECT * FROM apostas_extras WHERE mercado_id = ?', [mercado_id]);
     const poteTotal = apostas.reduce((s, a) => s + a.valor, 0);
     const potePremios = poteTotal * 0.89;
-    const taxaCasa = poteTotal * 0.11;
 
     const vencedoras = apostas.filter(a => a.opcao_escolhida === resultado);
     const totalVencedores = vencedoras.reduce((s, a) => s + a.valor, 0);
 
+    // Proteção de saldo: se o pote de prêmios não cobre o apostado pelos vencedores,
+    // devolve o valor integral de cada um.
+    const garantia = totalVencedores > 0 && potePremios < totalVencedores;
+    const totalPago = garantia ? totalVencedores : potePremios;
+    const taxaCasa = garantia ? (poteTotal - totalVencedores) : (poteTotal * 0.11);
+
     const ops = [];
     if (totalVencedores > 0) {
       for (const a of vencedoras) {
-        const premio = (a.valor / totalVencedores) * potePremios;
+        const premio = (a.valor / totalVencedores) * totalPago;
         ops.push({ sql: 'UPDATE apostas_extras SET status = ?, premio = ? WHERE id = ?', params: ['ganhou', premio, a.id] });
         ops.push({ sql: 'UPDATE apostadores SET saldo = saldo + ?, total_ganho = total_ganho + ? WHERE id = ?', params: [premio, premio, a.apostador_id] });
       }
@@ -192,7 +197,7 @@ router.post('/admin/finalizar', authAdmin, async (req, res) => {
 
     for (const a of apostas) {
       const ganhou = a.opcao_escolhida === resultado;
-      const premio = ganhou && totalVencedores > 0 ? (a.valor / totalVencedores) * potePremios : 0;
+      const premio = ganhou && totalVencedores > 0 ? (a.valor / totalVencedores) * totalPago : 0;
       const msg = ganhou
         ? `🎉 Você ganhou R$ ${premio.toFixed(2)} em ${mercadoLabel} (${jogoDesc})!`
         : `😔 ${mercadoLabel} (${jogoDesc}): resultado "${resultado}". Você apostou "${a.opcao_escolhida}".`;
@@ -206,7 +211,7 @@ router.post('/admin/finalizar', authAdmin, async (req, res) => {
     for (const a of apostas) {
       const ap = await get('SELECT nome FROM apostadores WHERE id = ?', [a.apostador_id]);
       const status = a.opcao_escolhida === resultado ? 'ganhou' : 'perdeu';
-      const premio = vencedoras.find(v => v.id === a.id) && totalVencedores > 0 ? (a.valor / totalVencedores) * potePremios : 0;
+      const premio = vencedoras.find(v => v.id === a.id) && totalVencedores > 0 ? (a.valor / totalVencedores) * totalPago : 0;
       const desc = `${mercadoLabel}: ${jogoDesc}`;
       sheets.syncApostaExtra({ ...a, status, premio }, ap?.nome || '', desc);
     }

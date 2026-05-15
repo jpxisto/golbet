@@ -207,23 +207,28 @@ router.patch('/jogos/:id/finalizar', authAdmin, async (req, res) => {
 
   const apostas = await all('SELECT * FROM apostas WHERE jogo_id = ?', [jogoId]);
   const poteTotal = apostas.reduce((s, a) => s + a.valor, 0);
-  const taxaCasa = poteTotal * 0.11;
   const potePremios = poteTotal * 0.89;
   const vencedoras = apostas.filter(a => a.resultado === resultado);
   const totalVencedor = vencedoras.reduce((s, a) => s + a.valor, 0);
 
+  // Proteção de saldo: se o pote de prêmios não cobre o apostado pelos vencedores,
+  // devolve o valor integral de cada um (casa fica só com o que os perdedores apostaram).
+  const garantia = totalVencedor > 0 && potePremios < totalVencedor;
+  const totalPago = garantia ? totalVencedor : potePremios;
+  const taxaCasa = garantia ? (poteTotal - totalVencedor) : (poteTotal * 0.11);
+
   const ops = [];
   if (totalVencedor > 0) {
-    const oddFinal = potePremios / totalVencedor;
+    const oddFinal = totalPago / totalVencedor; // sempre >= 1 com a garantia
     vencedoras.forEach(aposta => {
-      const premio = aposta.valor * oddFinal;
+      const premio = (aposta.valor / totalVencedor) * totalPago;
       ops.push({ sql: 'UPDATE apostadores SET saldo = saldo + ?, total_ganho = total_ganho + ? WHERE id = ?', params: [premio, premio, aposta.apostador_id] });
       ops.push({ sql: `UPDATE apostas SET status = 'ganhou', premio = ?, odd_final = ? WHERE id = ?`, params: [premio, oddFinal, aposta.id] });
     });
     apostas.filter(a => a.resultado !== resultado).forEach(a => {
       ops.push({ sql: `UPDATE apostas SET status = 'perdeu' WHERE id = ?`, params: [a.id] });
     });
-    ops.push({ sql: 'INSERT INTO lucro_casa (jogo_id, valor) VALUES (?, ?)', params: [jogoId, taxaCasa] });
+    if (taxaCasa > 0) ops.push({ sql: 'INSERT INTO lucro_casa (jogo_id, valor) VALUES (?, ?)', params: [jogoId, taxaCasa] });
     ops.push({ sql: `UPDATE jogos SET status = 'finalizado', resultado = ?, taxa_casa = ?, odd_final = ? WHERE id = ?`, params: [resultado, taxaCasa, oddFinal, jogoId] });
   } else {
     apostas.forEach(a => ops.push({ sql: `UPDATE apostas SET status = 'perdeu' WHERE id = ?`, params: [a.id] }));
@@ -236,19 +241,20 @@ router.patch('/jogos/:id/finalizar', authAdmin, async (req, res) => {
   // Sync Sheets — lucro + todas as apostas com resultado final
   const jogoDesc = `${jogo.flag_a} ${jogo.time_a} vs ${jogo.time_b} ${jogo.flag_b}`;
   sheets.syncLucroCasa(jogoId, jogoDesc, taxaCasa);
-  sheets.logAdmin('Jogo finalizado', `${jogoDesc} — resultado: ${resultado}`, `Pote: R$ ${poteTotal.toFixed(2)}`);
+  const garantiaLabel = garantia ? ' [garantia ativada]' : '';
+  sheets.logAdmin('Jogo finalizado', `${jogoDesc} — resultado: ${resultado}${garantiaLabel}`, `Pote: R$ ${poteTotal.toFixed(2)}`);
   for (const aposta of apostas) {
     const ap = await get('SELECT nome FROM apostadores WHERE id = ?', [aposta.apostador_id]);
     const status = aposta.resultado === resultado ? 'ganhou' : 'perdeu';
-    const premio = vencedoras.find(v => v.id === aposta.id)
-      ? (aposta.valor / (totalVencedor || 1)) * potePremios : 0;
+    const premio = vencedoras.find(v => v.id === aposta.id) && totalVencedor > 0
+      ? (aposta.valor / totalVencedor) * totalPago : 0;
     sheets.syncAposta({ ...aposta, status, premio }, ap?.nome || '', jogoDesc, jogo);
   }
 
   // Notificações para apostadores
   for (const aposta of apostas) {
     const ganhou = aposta.resultado === resultado;
-    const premio = ganhou && totalVencedor > 0 ? (aposta.valor / totalVencedor) * potePremios : 0;
+    const premio = ganhou && totalVencedor > 0 ? (aposta.valor / totalVencedor) * totalPago : 0;
     const msg = ganhou
       ? `🎉 Você ganhou R$ ${premio.toFixed(2)} no jogo ${jogoDesc}!`
       : `😔 Você não acertou o resultado do jogo ${jogoDesc}.`;
@@ -396,18 +402,23 @@ router.patch('/longo-prazo/mercados/:id/finalizar', authAdmin, async (req, res) 
   try {
     const apostas = await all('SELECT * FROM apostas_longo_prazo WHERE mercado_id = ?', [mercadoId]);
     const poteTotal = apostas.reduce((s, a) => s + a.valor, 0);
-    const taxaCasa = poteTotal * 0.11;
     const potePremios = poteTotal * 0.89;
 
     const vencedoras = apostas.filter(a => a.opcao_escolhida === resultado);
     const totalVencedores = vencedoras.reduce((s, a) => s + a.valor, 0);
+
+    // Proteção de saldo: se o pote de prêmios não cobre o apostado pelos vencedores,
+    // devolve o valor integral de cada um.
+    const garantia = totalVencedores > 0 && potePremios < totalVencedores;
+    const totalPago = garantia ? totalVencedores : potePremios;
+    const taxaCasa = garantia ? (poteTotal - totalVencedores) : (poteTotal * 0.11);
 
     const ops = [];
 
     if (totalVencedores > 0) {
       // Distribui proporcionalmente entre vencedores (mesmo padrão das apostas comuns)
       vencedoras.forEach(aposta => {
-        const premio = (aposta.valor / totalVencedores) * potePremios;
+        const premio = (aposta.valor / totalVencedores) * totalPago;
         ops.push({
           sql: 'UPDATE apostadores SET saldo = saldo + ?, total_ganho = total_ganho + ? WHERE id = ?',
           params: [premio, premio, aposta.apostador_id],

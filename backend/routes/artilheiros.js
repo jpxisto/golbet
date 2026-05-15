@@ -106,11 +106,17 @@ router.patch('/admin/:id/finalizar', authAdmin, async (req, res) => {
     if (mercado.resultado) return res.status(400).json({ erro: 'Mercado já foi finalizado' });
 
     const apostas = await all('SELECT * FROM apostas_artilheiros WHERE mercado_id = ?', [mercado.id]);
-    const potePremios = mercado.pote_total * 0.89;
-    const taxaCasa = mercado.pote_total * 0.11;
+    const poteTotal = mercado.pote_total;
+    const potePremios = poteTotal * 0.89;
 
     const vencedores = apostas.filter(a => a.opcao_escolhida === resultado);
     const totalVencedores = vencedores.reduce((sum, a) => sum + a.valor, 0);
+
+    // Proteção de saldo: se o pote de prêmios não cobre o apostado pelos vencedores,
+    // devolve o valor integral de cada um.
+    const garantia = totalVencedores > 0 && potePremios < totalVencedores;
+    const totalPago = garantia ? totalVencedores : potePremios;
+    const taxaCasa = garantia ? (poteTotal - totalVencedores) : (poteTotal * 0.11);
 
     const ops = [];
 
@@ -122,7 +128,7 @@ router.patch('/admin/:id/finalizar', authAdmin, async (req, res) => {
     // Distribuir prêmios proporcionalmente
     if (totalVencedores > 0) {
       vencedores.forEach(a => {
-        const premio = (a.valor / totalVencedores) * potePremios;
+        const premio = (a.valor / totalVencedores) * totalPago;
         ops.push({ sql: 'UPDATE apostas_artilheiros SET status = ?, premio = ? WHERE id = ?', params: ['ganhou', premio, a.id] });
         ops.push({ sql: 'UPDATE apostadores SET saldo = saldo + ?, total_ganho = total_ganho + ? WHERE id = ?', params: [premio, premio, a.apostador_id] });
       });
@@ -146,7 +152,7 @@ router.patch('/admin/:id/finalizar', authAdmin, async (req, res) => {
     for (const a of apostas) {
       const ap = await get('SELECT nome FROM apostadores WHERE id = ?', [a.apostador_id]);
       const status = a.opcao_escolhida === resultado ? 'ganhou' : 'perdeu';
-      const premio = vencedores.find(v => v.id === a.id) && totalVencedores > 0 ? (a.valor / totalVencedores) * potePremios : 0;
+      const premio = vencedores.find(v => v.id === a.id) && totalVencedores > 0 ? (a.valor / totalVencedores) * totalPago : 0;
       sheets.syncApostaArtilheiro({ ...a, status, premio }, ap?.nome || '', jogoDesc, jogo, mercado);
     }
 
