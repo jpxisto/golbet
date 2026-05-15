@@ -521,10 +521,4 @@ router.get('/financeiro', authAdmin, async (req, res) => {
   }
 });
 
-// ─── TEMP: Limpar planilha Google Sheets ─────────────────────────────────────
-router.post('/limpar-sheets', authAdmin, async (req, res) => {
-  const resultado = await sheets.clearAllSheets();
-  res.json(resultado);
-});
-
 module.exports = router;
