@@ -76,6 +76,27 @@ async function ensureSheets() {
   }
 }
 
+// ─── Limpar todas as abas (mantém cabeçalhos) ────────────────────────────────
+async function clearAllSheets() {
+  if (!enabled()) return { erro: 'Sheets não configurado' };
+  try {
+    const sheets = await getSheets();
+    const { data } = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    for (const sheet of data.sheets) {
+      const title = sheet.properties.title;
+      const rowCount = sheet.properties.gridProperties.rowCount;
+      if (rowCount <= 1) continue; // só cabeçalho, pula
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `'${title}'!A2:Z${rowCount}`,
+      });
+    }
+    return { sucesso: true };
+  } catch (e) {
+    return { erro: e.message };
+  }
+}
+
 // ─── Append genérico ─────────────────────────────────────────────────────────
 async function append(aba, valores) {
   if (!enabled()) return;
@@ -167,7 +188,7 @@ function logAdmin(acao, detalhes, valor) {
 }
 
 module.exports = {
-  ensureSheets,
+  ensureSheets, clearAllSheets,
   syncApostador, syncDeposito, syncSaque,
   syncAposta, syncApostaLongo, syncApostaArtilheiro,
   syncLucroCasa, logAdmin,
